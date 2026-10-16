@@ -29,7 +29,7 @@ const gobbleEnv = (name: string, args = '') =>
 const gobble = (cmd: string, spec: string) => String.raw`\providecommand${cmd}${spec}{}`;
 
 export const PACKAGE_RULES: PackageRule[] = [
-  // --- BusyTeX に無い／動かない ---
+  // --- ブラウザでは動かない（シェルエスケープが要る）。BusyTeX に無いだけのものは TeX Live の一式（src/texmf.ts）から読み込む ---
   {
     pkg: 'minted', // シェルエスケープが必要
     when: 'unavailable',
@@ -46,28 +46,6 @@ export const PACKAGE_RULES: PackageRule[] = [
   },
   { pkg: 'svg', when: 'unavailable', define: gobble('\\svgpath', '[1]') + gobble('\\svgsetup', '[1]') + gobble('\\includesvg', '[2][]') },
   { pkg: 'shellesc', when: 'unavailable', define: gobble('\\ShellEscape', '[1]') },
-  // tikz・pgf・pgfplots は追加のパッケージの一式（src/texmf.ts）から読み込む。以下はそれに入っていない、pgf を使うパッケージ
-  { pkg: 'tikz-cd', when: 'unavailable', define: gobbleEnv('tikzcd', 'o ') },
-  { pkg: 'circuitikz', when: 'unavailable', define: gobble('\\ctikzset', '[1]') + gobbleEnv('circuitikz', 'o ') },
-  { pkg: 'forest', when: 'unavailable', define: gobble('\\forestset', '[1]') + gobbleEnv('forest') },
-  { pkg: 'pgf-pie', when: 'unavailable' },
-  { pkg: 'pgfgantt', when: 'unavailable', define: gobbleEnv('ganttchart', 'o m m ') },
-  { pkg: 'smartdiagram', when: 'unavailable', define: gobble('\\smartdiagram', '[2][]') + gobble('\\smartdiagramset', '[1]') },
-  { pkg: 'tikzscale', when: 'unavailable' },
-  {
-    pkg: 'soul',
-    when: 'unavailable',
-    define: ['ul', 'st', 'hl', 'so', 'caps'].map((c) => `\\providecommand\\${c}[1]{#1}`).join('') + gobble('\\sethlcolor', '[1]') + gobble('\\setul', '[2]'),
-  },
-
-  // --- フォント：BusyTeX に無い、またはフォントの対応表（pdftex.map）に載っていないので、同じ書体の別のパッケージで代用する ---
-  { pkg: 'newtxtext', when: 'substitute', substitute: String.raw`\renewcommand\rmdefault{ptm}` },
-  { pkg: 'newtxmath', when: 'substitute', substitute: String.raw`\RequirePackage{mathptmx}` },
-  { pkg: 'newpxtext', when: 'substitute', substitute: String.raw`\renewcommand\rmdefault{ppl}` },
-  { pkg: 'newpxmath', when: 'substitute', substitute: String.raw`\RequirePackage{mathpazo}` },
-  { pkg: 'txfonts', when: 'substitute', substitute: String.raw`\RequirePackage{mathptmx}\RequirePackage[scaled=.92]{helvet}\RequirePackage{courier}` },
-  { pkg: 'pxfonts', when: 'substitute', substitute: String.raw`\RequirePackage{mathpazo}\RequirePackage[scaled=.92]{helvet}\RequirePackage{courier}` },
-  { pkg: 'newtx', when: 'substitute', substitute: String.raw`\RequirePackage{mathptmx}` },
   // --- 表紙の見た目に関係しない（常に外す） ---
   {
     pkg: 'todonotes',

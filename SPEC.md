@@ -63,7 +63,11 @@ LaTeX プロジェクト（zip）から論文の「表紙」（タイトル・�
     - `algorithmic.sty`（IEEE テンプレートが読み込む）は `ubuntu-texlive-science` に入っている。
   - **必要なときだけ読み込む**：`ubuntu-texlive-latex-extra`（gzip 後 約 36 MB。`stfloats`、`multirow`、`cleveref`、`enumitem` など）。
     - BusyTeX の依存解決は、**メイン tex の中身が文字列のときだけ** `\usepackage` を読む。パッチ後の tex は文字列で渡す。
-  - pgf/TikZ・pgfplots はどのデータパッケージにも無いので、TeX Live 2023 版を `public/texmf/pgf.zip`（約 1.5 MB）にまとめて配信する（`scripts/fetch-texmf.sh`）。組版で `tikz.sty` などが見つからなければ、目録（`index.json`）から一式を探して読み込み、組み直す（`src/texmf.ts`）。読み込んだ一式は後の組版に引き継ぐ。
+  - **TeX Live の残り**：データパッケージは Ubuntu の TeX Live の一部だけで、pgf/TikZ、revtex、newtx、biblatex、acmart などが無い。そこで TeX Live 2023（BusyTeX と同じ版）のうち、BusyTeX に無いファイルを持つパッケージを `scripts/build-texmf.mjs` が自動で集め、TeX Live のパッケージごとの zip（`public/texmf/p/<名前>.zip`）と目録（`index.json`：ファイル名 → zip、zip 同士の依存関係、フォントの対応表）にして配信する。
+    - 含めるもの：`tex/latex`・`tex/generic`・`bibtex/bst` と、pdfTeX 用のフォント（`tfm`・`type1`・`vf`・`enc`・`map`）。約 1,700 パッケージ、415 MB。
+    - フォントは、3 MB 以下のパッケージ（記号など）と、論文でよく使うもの（newtx、libertine、stix2、inconsolata など。`FONT_ALLOW`）だけ。ほかの大きなフォントのパッケージは含めず、組版ではそのパッケージを外す。GitHub Pages の 1 サイト 1 GB の上限に収めるため。
+    - 組版の前に、クラス・残したパッケージ・`\usetikzlibrary`・同梱の `.sty` が読み込むものを目録で引き、依存するものも含めてまとめて読み込む（`src/texmf.ts`、`build.ts`）。それでも足りないファイル（ログの ``File `X' not found``、TikZ のライブラリ、フォントの `.tfm`・`.pfb`）があれば、目録から探して読み込み、組み直す。
+    - 読み込んだ一式に含まれるフォントの対応表は、`\pdfmapfile{+X.map}` で pdfTeX に知らせる（BusyTeX の `pdftex.map` には載っていないため）。
 - **応答の見張り**：BusyTeX はデータパッケージの読み込みに失敗すると、エラーを出さずに完了を待ち続ける。組版中にワーカーから 120 秒何も届かなければ打ち切り、ワーカーを作り直す。ワーカーのエラーも同様に扱う。
 - 初回の転送量は gzip 後で約 110 MB（本体 12 MB、texlive-basic 77 MB、その他 22 MB）。データは IndexedDB にキャッシュされる。
 - コンパイルはプロジェクトを MEMFS に書き、**メイン tex のディレクトリに chdir してから**実行される。相対パスは元のプロジェクトと同じに解決される。
@@ -205,12 +209,12 @@ zip ─▶ 展開・正規化 ─▶ メイン tex 特定 ─▶ \input 展開�
 
 **(h) 不要なパッケージ・動かないパッケージを外す**（`stubs.ts`）
 - パッケージごとの規則の表（`PACKAGE_RULES`）で、`\usepackage` から外すかを決める。
-  - `unavailable`：BusyTeX に無い、または動かない（`minted`、`svg`、`tikz`・`pgfplots` ほか pgf 系、`soul`）。使われていても外す。
+  - `unavailable`：ブラウザでは動かない（シェルエスケープが要る `minted`、`svg`、`shellesc`）。使われていても外す。BusyTeX に無いだけのものは TeX Live の一式から読み込む。
   - `always`：表紙の見た目に関係しない（`todonotes`、`stfloats`、`balance`、`placeins`、`wrapfig` など）。常に外す。
   - `unused`：表紙とイントロで使われていなければ外す（`multirow`、`cleveref`、`enumitem`、`makecell`、`comment`、`orcidlink`）。使われているかは、残す本文とプリアンブルのマクロ定義を、規則ごとのパターンで調べる。latex-extra の読み込みを避ける効果もある。
 - 外した位置に、プリアンブルで使われうる設定コマンドの空定義を置く（後続の `\usetikzlibrary` や `\crefname` が未定義にならないように）。残った `tikzpicture` などの環境は中身ごと捨てる定義にする。
 - 外したパッケージが読み込んでいたもの（tikz → xcolor など）は、代わりに読み込む。
-- **見つからないファイルによる失敗からの回復**（`build.ts`）：ログの ``File `X.sty' not found`` から、X を直接 `\usepackage` していればそれを、そうでなければエラーの時点で開いていたパッケージ（ログの括弧の対応から求める）を外して組み直す。最大 4 回。外した旨を表示する。
+- **見つからないファイルによる失敗からの回復**（`build.ts`）：TeX Live の目録にも無いパッケージは、X を直接 `\usepackage` していればそれを、そうでなければエラーの時点で開いていたパッケージ（ログの括弧の対応から求める）を外して組み直す。目録に無い TikZ のライブラリは、中身の無いファイルで代用する。最大 8 回。外した旨を表示する。
 - **サブフォルダのスタイルファイル**：zip のサブフォルダにある `.sty`・`.cls`・`.bst` などは、メインと同じ場所にも置く（TeX はカレントディレクトリしか探さないため）。
 
 ### 5.2 スタイル（クラス）別の対応（`src/styles/`）

@@ -2,7 +2,7 @@
   "revtex": {
     "id": "revtex",
     "originalOk": true,
-    "ms": 3034,
+    "ms": 4107,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -12,11 +12,11 @@
   "mnras": {
     "id": "mnras",
     "originalOk": true,
-    "ms": 3945,
+    "ms": 3713,
     "intro": false,
     "messages": [
       "本文 6pt では著者と Abstract が印刷範囲に収まらないため、5.4pt に下げて組みました",
-      "Abstract の下の余白が 0.8 mm しかないため、イントロは入れませんでした（本文の文字サイズを小さくすると入ります）"
+      "Abstract の下の余白が 1.2 mm しかないため、イントロは入れませんでした（本文の文字サイズを小さくすると入ります）"
     ],
     "ok": true,
     "bodyPt": 5.370474368798307,
@@ -25,7 +25,7 @@
   "achemso": {
     "id": "achemso",
     "originalOk": true,
-    "ms": 1906,
+    "ms": 1307,
     "intro": false,
     "messages": [
       "本文 6pt では著者と Abstract が印刷範囲に収まらないため、4.7pt に下げて組みました",
@@ -38,7 +38,7 @@
   "elsarticle": {
     "id": "elsarticle",
     "originalOk": true,
-    "ms": 6434,
+    "ms": 5186,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -48,7 +48,7 @@
   "amsart": {
     "id": "amsart",
     "originalOk": true,
-    "ms": 2939,
+    "ms": 2610,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -58,11 +58,9 @@
   "ieeetran": {
     "id": "ieeetran",
     "originalOk": true,
-    "ms": 2076,
+    "ms": 2137,
     "intro": true,
-    "messages": [
-      "IEEEtran.bst が無いため、番号の付け方が同じ ieeetr.bst で引用番号を解決しました"
-    ],
+    "messages": [],
     "ok": true,
     "bodyPt": 5.96719374310923,
     "titlePt": 10.150565949988335
@@ -70,11 +68,9 @@
   "aastex": {
     "id": "aastex",
     "originalOk": true,
-    "ms": 11133,
+    "ms": 8650,
     "intro": true,
-    "messages": [
-      "epsf、ulem は見つからない（または見つからないファイルを要求する）ため外して組みました"
-    ],
+    "messages": [],
     "ok": true,
     "bodyPt": 5.96719374310923,
     "titlePt": 4.253069634480159
@@ -82,7 +78,7 @@
   "casdc": {
     "id": "casdc",
     "originalOk": true,
-    "ms": 13881,
+    "ms": 11413,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -92,7 +88,7 @@
   "article": {
     "id": "article",
     "originalOk": true,
-    "ms": 3548,
+    "ms": 2508,
     "intro": false,
     "messages": [
       "Abstract の下にイントロが入らなかったため、イントロ無しで出力します（本文の文字サイズを小さくすると入ります）"

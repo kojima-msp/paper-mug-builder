@@ -48,6 +48,8 @@ export interface PatchOptions {
   adapterId?: string;
   /** プロジェクト内にファイルがあるか（メインのディレクトリ基準のパス） */
   hasFile?: (path: string) => boolean;
+  /** TeX Live の一式（src/texmf.ts）にファイルがあるか。BusyTeX に無い .bst を代用するかの判断に使う */
+  texmfHas?: (file: string) => boolean;
   /** メイン tex の拡張子を除いたファイル名（元の .bbl を探すため） */
   mainName?: string;
   /** 外すパッケージ（コンパイルで見つからなかったもの） */
@@ -74,7 +76,7 @@ export interface PatchResult {
   options: string[];
   /** 本文の文字サイズ (pt) */
   baseFontSize: number;
-  cutReason: 'maketitle' | 'abstract' | 'keywords';
+  cutReason: 'maketitle' | 'abstract' | 'keywords' | 'section';
   /** Abstract をタイトルの全幅領域に移したか */
   movedAbstract: boolean;
   /** イントロを流し込んだか */
@@ -171,10 +173,15 @@ export function patchSource(src: string, opts: PatchOptions): PatchResult {
   const titleEnd = findCommandEnd(masked, 'maketitle', bodyStart);
   const absBegin = findBegin(masked, 'abstract', bodyStart);
   const absEnd = findEndOf(masked, 'abstract', bodyStart);
-  if (titleEnd < 0 && absEnd < 0) throw new PatchError('\\maketitle も \\end{abstract} も見つかりません');
-  if (absEnd < 0) warnings.push('\\end{abstract} が見つからないため、\\maketitle の直後で切ります');
-  let cut = Math.max(titleEnd, absEnd);
-  let cutReason: PatchResult['cutReason'] = cut === absEnd ? 'abstract' : 'maketitle';
+  // どちらも無い（タイトルページを \\begin{center} などで手で組んでいる）なら、最初の \\section の手前までを表紙とする
+  const firstSection = titleEnd < 0 && absEnd < 0 ? findCommandStart(masked, 'section', bodyStart) : -1;
+  if (titleEnd < 0 && absEnd < 0 && (firstSection < 0 || firstSection >= endDoc)) {
+    throw new PatchError('\\maketitle も \\end{abstract} も \\section も見つかりません');
+  }
+  if (firstSection >= 0) warnings.push('\\maketitle も abstract 環境も無いため、最初の \\section の手前までを表紙として切り出しました');
+  else if (absEnd < 0) warnings.push('\\end{abstract} が見つからないため、\\maketitle の直後で切ります');
+  let cut = firstSection >= 0 ? firstSection : Math.max(titleEnd, absEnd);
+  let cutReason: PatchResult['cutReason'] = firstSection >= 0 ? 'section' : cut === absEnd ? 'abstract' : 'maketitle';
 
   // Abstract の直後の Keywords。書き方は 3 通りある
   // - 環境：\begin{IEEEkeywords}…\end{IEEEkeywords}、\begin{keywords}…（スタイルの keywordEnvs）
@@ -362,11 +369,11 @@ function bibliographyCode(
   if (!style) return { code: `\\bibliography{${bibFiles.join(',')}}`, source: 'bibtex' };
   let bst = style;
   let note: string | undefined;
-  if (!has(`${style}.bst`) && !AVAILABLE_BST.has(style)) {
+  if (!has(`${style}.bst`) && !AVAILABLE_BST.has(style) && !opts.texmfHas?.(`${style}.bst`)) {
     const sub = bstSubstitutes[style];
     if (!sub) return { warning: `${style}.bst が見つからないため、引用は [?] になります` };
     bst = sub;
-    note = `${style}.bst が無いため、番号の付け方が同じ ${sub}.bst で引用番号を解決しました`;
+    note = `${style}.bst が TeX Live にも無いため、番号の付け方が同じ ${sub}.bst で引用番号を解決しました`;
   }
   return { code: `\\bibliographystyle{${bst}}\\bibliography{${bibFiles.join(',')}}`, source: 'bibtex', note };
 }
@@ -423,10 +430,40 @@ export function patchProject(files: ProjectFiles, mainPath: string, opts: PatchO
 }
 
 /** コンパイルログから、見つからなかったパッケージ（.sty）とクラス（.cls）を取り出す。 */
-export function missingFiles(log: string): { packages: string[]; classes: string[] } {
-  const names = [...log.matchAll(/File `([^']+)\.(sty|cls)' not found/g)];
-  const uniq = (ext: string) => [...new Set(names.filter((m) => m[2] === ext).map((m) => m[1]))];
-  return { packages: uniq('sty'), classes: uniq('cls') };
+export interface MissingFiles {
+  packages: string[];
+  classes: string[];
+  /** \usetikzlibrary が見つけられなかったライブラリ（パッケージが内部で読み込むものも含む） */
+  tikzLibraries: string[];
+  /** 見つからなかったファイルの名前（拡張子つき）。TeX Live の目録（src/texmf.ts）で探す */
+  files: string[];
+  /** フォントの対応表に載っていなかったフォント（TFM の名前） */
+  unmappedFonts: string[];
+}
+
+export function missingFiles(log: string): MissingFiles {
+  const uniq = (xs: string[]) => [...new Set(xs)];
+  // LaTeX の \usepackage・\input など：File `foo.sty' not found
+  const named = [...log.matchAll(/File `([^']+)' not found/g)].map((m) => m[1]);
+  const byExt = (ext: string) => uniq(named.filter((n) => n.endsWith(`.${ext}`)).map((n) => n.slice(0, -ext.length - 1)));
+  const tikzLibraries = uniq([...log.matchAll(/I did not find the tikz library '([^']+)'/g)].map((m) => m[1]));
+  // フォント：! Font T1/ntxtlf/m/n/10=ntx-Regular-tlf-t1 at 10.0pt not loadable: Metric (TFM) file not found.
+  // （ログは 79 文字で折り返されるので、「Metric」までで判断する）
+  const tfm = [...log.matchAll(/! Font [^=\s]*=([^\s]+?)(?: at [\d.]+pt| scaled \d+)? not loadable: Metric/g)].map((m) => `${m[1]}.tfm`);
+  // pdfTeX が開けなかったフォントのファイル：!pdfTeX error: pdflatex (file ntx-Regular.pfb): cannot open Type 1 font file for reading
+  const fontFiles = [...log.matchAll(/\(file ([^\s()]+)\): cannot open/g)].map((m) => m[1]);
+  // plain TeX の \input：! I can't find file `foo.tex'.
+  const inputs = [...log.matchAll(/I can't find file `([^']+)'/g)].map((m) => m[1]);
+  const files = uniq([
+    ...named,
+    ...tikzLibraries.flatMap((l) => [`tikzlibrary${l}.code.tex`, `pgflibrary${l}.code.tex`]),
+    ...tfm,
+    ...fontFiles,
+    ...inputs.flatMap((n) => (/\.\w+$/.test(n) ? [n] : [n, `${n}.tex`])),
+  ]);
+  // 対応表に載っていないと、pdfTeX はビットマップのフォントを探して失敗する：!pdfTeX error: ... (file txsy): Font txsy at 360 not found
+  const unmappedFonts = uniq([...log.matchAll(/\(file ([^\s()]+)\): Font \1 at \d+ not found/g)].map((m) => m[1]));
+  return { packages: byExt('sty'), classes: byExt('cls'), tikzLibraries, files, unmappedFonts };
 }
 
 /**

@@ -6,3 +6,4 @@ public/busytex/
 # 試しに置いた実際の論文など
 arXiv-*.zip
 public/texmf/
+.cache/

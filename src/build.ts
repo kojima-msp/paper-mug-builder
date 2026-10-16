@@ -15,7 +15,7 @@ import {
 import { epsPlaceholder } from './eps';
 import { basename, dirname, joinPath } from './project';
 import { emptyShim, shimFiles } from './stubs';
-import { bundleFor, loadBundle } from './texmf';
+import { bundleFor, bundleMaps, loadBundle, mapForFont, requiredFiles, texmfFileChecker, withDeps } from './texmf';
 import type { ProjectFiles } from './zip';
 
 export interface BuildResult {
@@ -59,8 +59,15 @@ const SUPPORT_EXT = /\.(sty|cls|clo|cfg|def|fd|bst|bbx|cbx)$/i;
  * - サブフォルダにある .sty や .cls
  * - BusyTeX に無い・使えないパッケージの代わり（シム）。プロジェクトに同名のファイルがあればそちらを使う
  * - 見つからなかったため外したパッケージの、中身の無い代わり（クラスが読み込む場合にも組版を通すため）
+ * - 見つからなかった TikZ のライブラリの、中身の無い代わり
  */
-function supportFiles(files: ProjectFiles, mainPath: string, dropped: string[], texmf: ProjectFiles[]): Record<string, string | Uint8Array> {
+function supportFiles(
+  files: ProjectFiles,
+  mainPath: string,
+  dropped: string[],
+  tikzLibraries: string[],
+  texmf: ProjectFiles[],
+): Record<string, string | Uint8Array> {
   const dir = dirname(mainPath);
   const at = (name: string) => (dir ? `${dir}/${name}` : name);
   const out: Record<string, string | Uint8Array> = {};
@@ -73,6 +80,7 @@ function supportFiles(files: ProjectFiles, mainPath: string, dropped: string[], 
   for (const bundle of texmf) for (const [name, c] of bundle) add(name, c);
   for (const [name, c] of Object.entries(shimFiles())) add(name, c);
   for (const pkg of dropped) add(`${pkg}.sty`, emptyShim(pkg));
+  for (const lib of tikzLibraries) add(`tikzlibrary${lib}.code.tex`, `% [paper-mug] BusyTeX に無いため、中身の無いライブラリで代用\n\\endinput\n`);
   return out;
 }
 
@@ -84,6 +92,10 @@ interface Missing {
   hints: string[];
   /** 読み込んだ追加のパッケージの一式（src/texmf.ts） */
   bundles: string[];
+  /** 中身の無い代わりを置いた TikZ のライブラリ */
+  tikzLibraries: string[];
+  /** pdfTeX に追加で知らせるフォントの対応表（BusyTeX の pdftex.map に載っていないフォント用） */
+  maps: string[];
 }
 
 interface Compiled extends Missing {
@@ -104,44 +116,88 @@ async function compileOnce(
   mug: MugOptions,
   phase: PatchPhase,
   opts: CompileOpts,
-  missing: Missing = { dropped: [], hints: [], bundles: [] },
+  missing: Missing = { dropped: [], hints: [], bundles: [], tikzLibraries: [], maps: [] },
 ): Promise<Compiled> {
-  let { dropped, hints, bundles } = missing;
+  let { dropped, hints, bundles, tikzLibraries, maps } = missing;
+  const texmfHas = await texmfFileChecker();
   for (let i = 0; ; i++) {
-    const support = supportFiles(files, mainPath, dropped, await Promise.all(bundles.map(loadBundle)));
-    const patch = patchProject(files, mainPath, { mug, phase, ...opts, dropPackages: dropped, hintPackages: hints });
+    const patch = patchProject(files, mainPath, { mug, phase, ...opts, texmfHas, dropPackages: dropped, hintPackages: hints });
+    // TeX Live のうち BusyTeX に無いファイル：クラスと残したパッケージを含む一式を、依存するものも含めて先に読み込む
+    // （組んでから足りないものを 1 つずつ足すと、組み直しが何度も要るため）
+    if (i === 0) bundles = await withDeps([...new Set([...bundles, ...(await bundlesUsedBy(files, patch))])]);
+    const support = supportFiles(files, mainPath, dropped, tikzLibraries, await Promise.all(bundles.map(loadBundle)));
     // EPS の画像の代わりの枠（パッチが \includegraphics の名前を書き換えている）
     const dir = dirname(mainPath);
     for (const e of patch.epsImages) {
       support[joinPath(dir, e.placeholder)] = await epsPlaceholder(e.eps, files.get(joinPath(dir, e.eps)));
     }
-    const compile = await engine.compile(files, patch.outPath, { ...support, [patch.outPath]: patch.source }, { bibtex: patch.bibtex });
+    // 読み込んだ一式のフォントの対応表を pdfTeX に知らせる（BusyTeX の pdftex.map には載っていない）
+    const mapLines = [...new Set([...(await bundleMaps(bundles)), ...maps])].map((m) => `\\pdfmapfile{+${m}}`).join('');
+    const source = mapLines ? `${mapLines}\n${patch.source}` : patch.source;
+    const compile = await engine.compile(files, patch.outPath, { ...support, [patch.outPath]: source }, { bibtex: patch.bibtex });
     const log = parseCompileLog(compile.log);
     const notes = dropped.length ? [`${dropped.join('、')} は見つからない（または見つからないファイルを要求する）ため外して組みました`] : [];
+    if (tikzLibraries.length) notes.push(`TikZ のライブラリ ${tikzLibraries.join('、')} は見つからないため、中身の無いもので代用して組みました`);
     if (compile.ok && compile.pdf) {
-      return { patch, compile, log, geom: await pageGeometry(compile.pdf, log, phase === 'full'), notes, dropped, hints, bundles };
+      return { patch, compile, log, geom: await pageGeometry(compile.pdf, log, phase === 'full'), notes, dropped, hints, bundles, tikzLibraries, maps };
     }
-    // 見つからないパッケージへの対処。表紙に不要なことが多いので、組めることを優先する
-    // - 追加のパッケージの一式（pgf/TikZ など）に含まれていれば、それを読み込む
-    // - 自分で \usepackage したもの（またはそれを要求したもの）は外す
-    // - クラスが要求したものは、まず \usepackage を書き足して BusyTeX に読み込ませる（latex-extra にあれば見つかる）。
+    // 見つからないファイルへの対処。表紙に不要なことが多いので、組めることを優先する
+    // - TeX Live の目録にあれば、それを含む一式を読み込む
+    // - 目録に無いパッケージ：自分で \usepackage したもの（またはそれを要求したもの）は外す。
+    //   クラスが要求したものは、まず \usepackage を書き足して BusyTeX に読み込ませる（latex-extra にあれば見つかる）。
     //   それでも見つからなければ、中身の無い代わりを置く
-    const next = { dropped: [...dropped], hints: [...hints], bundles: [...bundles] };
-    for (const m of missingFiles(compile.log).packages) {
-      const bundle = await bundleFor(`${m}.sty`);
-      if (bundle && !next.bundles.includes(bundle.name)) {
-        next.bundles.push(bundle.name);
-        continue;
+    // - 目録に無い TikZ のライブラリは、中身の無い代わりを置く
+    const next = { dropped: [...dropped], hints: [...hints], bundles: [...bundles], tikzLibraries: [...tikzLibraries], maps: [...maps] };
+    const lost = missingFiles(compile.log);
+    // 対応表に載っていないフォントは、そのフォントが載っている .map を知らせる（.map が一式にあれば、それも読み込む）
+    for (const font of lost.unmappedFonts) {
+      const map = await mapForFont(font);
+      if (!map || next.maps.includes(map)) continue;
+      next.maps.push(map);
+      lost.files.push(map);
+    }
+    const found = new Set<string>();
+    for (const f of lost.files) {
+      const b = await bundleFor(f);
+      if (b && !next.bundles.includes(b)) {
+        found.add(f);
+        next.bundles.push(...(await withDeps([b])).filter((d) => !next.bundles.includes(d)));
       }
+    }
+    for (const lib of lost.tikzLibraries) {
+      const resolved = found.has(`tikzlibrary${lib}.code.tex`) || found.has(`pgflibrary${lib}.code.tex`);
+      if (!resolved && !next.tikzLibraries.includes(lib)) next.tikzLibraries.push(lib);
+    }
+    for (const m of lost.packages) {
+      if (found.has(`${m}.sty`)) continue;
       const culprit = culpritPackage(compile.log, m, patch.keptPackages);
       if (culprit && !next.dropped.includes(culprit)) next.dropped.push(culprit);
       else if (!culprit && !next.hints.includes(m)) next.hints.push(m);
       else if (!culprit && !next.dropped.includes(m)) next.dropped.push(m);
     }
-    const changed = next.dropped.length !== dropped.length || next.hints.length !== hints.length || next.bundles.length !== bundles.length;
-    if (!changed || i >= MAX_DROP_RETRIES) return { patch, compile, log, notes, dropped, hints, bundles };
-    ({ dropped, hints, bundles } = next);
+    const changed =
+      next.dropped.length !== dropped.length ||
+      next.hints.length !== hints.length ||
+      next.bundles.length !== bundles.length ||
+      next.tikzLibraries.length !== tikzLibraries.length ||
+      next.maps.length !== maps.length;
+    if (!changed || i >= MAX_DROP_RETRIES) return { patch, compile, log, notes, dropped, hints, bundles, tikzLibraries, maps };
+    ({ dropped, hints, bundles, tikzLibraries, maps } = next);
   }
+}
+
+/** 論文が使う TeX Live の一式（クラス、残したパッケージ、TikZ のライブラリ、同梱の .sty・.cls が読み込むもの） */
+async function bundlesUsedBy(files: ProjectFiles, patch: ProjectPatch): Promise<string[]> {
+  const wanted = new Set<string>(patch.keptPackages.map((p) => `${p}.sty`));
+  for (const f of requiredFiles(patch.source)) wanted.add(f);
+  const cls = /\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}/.exec(patch.source)?.[1].trim();
+  if (cls) wanted.add(`${cls}.cls`);
+  const dec = new TextDecoder('latin1');
+  for (const [p, c] of files) if (/\.(sty|cls)$/i.test(p)) for (const f of requiredFiles(dec.decode(c))) wanted.add(f);
+  // 同梱しているものは読み込まない
+  for (const p of files.keys()) wanted.delete(basename(p));
+  const names = await Promise.all([...wanted].map(bundleFor));
+  return [...new Set(names.filter((n): n is string => !!n))];
 }
 
 const failed = (mug: MugOptions, c: Compiled): BuildResult => ({
@@ -180,7 +236,7 @@ async function buildReflow(
   adapterId: string | undefined,
   dropped: string[],
 ): Promise<BuildResult> {
-  const c = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId }, { dropped, hints: [], bundles: [] });
+  const c = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId }, { dropped, hints: [], bundles: [], tikzLibraries: [], maps: [] });
   if (!c.geom) return failed(mug, c);
   const g = c.geom;
   const crop = textCrop(g, g.textTop, g.contentBottom);
@@ -211,7 +267,7 @@ async function buildOriginal(
 ): Promise<BuildResult> {
   const notes: string[] = [];
   // 1. 元の本文幅：ヘッダー・タイトル・フッター
-  const a = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId, width: 'original' }, { dropped, hints: [], bundles: [] });
+  const a = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId, width: 'original' }, { dropped, hints: [], bundles: [], tikzLibraries: [], maps: [] });
   if (!a.geom) return failed(mug, a);
   // 2. 本文サイズに合わせた幅：著者・Abstract（高さの計測を兼ねる）
   let b = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId, width: 'body' }, a);

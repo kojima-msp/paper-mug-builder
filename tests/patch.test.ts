@@ -284,14 +284,14 @@ describe('警告とパッケージの無効化', () => {
   });
   const pre = (usepkgs: string, body = '', extraPreamble = '') =>
     `\\documentclass{article}\n${usepkgs}\n${extraPreamble}\n\\begin{document}\\title{T}\\maketitle\\begin{abstract}A ${body}\\end{abstract}\\end{document}`;
-  it('BusyTeX に無い soul は空定義に差し替え、常に外すもの（stfloats）と指定したものも外す。tikz は追加の一式から読むので残す', () => {
-    const r = patchSource(pre('\\usepackage{tikz,soul,stfloats,amsmath}\n\\usetikzlibrary{arrows}\n\\usepackage[x]{foo}'), { mug: mug(), dropPackages: ['foo'] });
-    expect(r.removedPackages).toEqual(['soul', 'stfloats', 'foo']);
-    expect(r.keptPackages).toEqual(['tikz', 'amsmath']);
-    expect(r.source).toContain('\\usepackage{tikz,amsmath}');
+  it('ブラウザで動かない minted は空定義に差し替え、常に外すもの（stfloats）と指定したものも外す。tikz・soul は TeX Live の一式から読むので残す', () => {
+    const r = patchSource(pre('\\usepackage{tikz,soul,minted,stfloats,amsmath}\n\\usetikzlibrary{arrows}\n\\usepackage[x]{foo}'), { mug: mug(), dropPackages: ['foo'] });
+    expect(r.removedPackages).toEqual(['minted', 'stfloats', 'foo']);
+    expect(r.keptPackages).toEqual(['tikz', 'soul', 'amsmath']);
+    expect(r.source).toContain('\\usepackage{tikz,soul,amsmath}');
     expect(r.source).toContain('% [paper-mug] removed foo: \\usepackage[x]{foo}');
     expect(r.source).not.toContain('\\providecommand\\usetikzlibrary');
-    expect(r.source).toContain('\\providecommand\\ul[1]{#1}');
+    expect(r.source).toContain('\\providecommand\\setminted');
   });
   it('表紙とイントロで使われていない multirow・cleveref は外し、使われていれば残す', () => {
     const unused = patchSource(pre('\\usepackage{multirow,cleveref}', '', '\\crefname{figure}{Fig.}{Figs.}'), { mug: mug() });
@@ -319,7 +319,29 @@ describe('警告とパッケージの無効化', () => {
   });
   it('missingFiles：見つからない .sty と .cls をログから拾う', () => {
     const log = "! LaTeX Error: File `stfloats.sty' not found.\n! LaTeX Error: File `IEEEtran.cls' not found.\nFile `stfloats.sty' not found";
-    expect(missingFiles(log)).toEqual({ packages: ['stfloats'], classes: ['IEEEtran'] });
+    expect(missingFiles(log)).toMatchObject({ packages: ['stfloats'], classes: ['IEEEtran'], tikzLibraries: [] });
+    expect(missingFiles(log).files).toEqual(['stfloats.sty', 'IEEEtran.cls']);
+  });
+  it('missingFiles：見つからないフォントのファイルを拾う', () => {
+    const log = [
+      '! Font T1/ntxtlf/m/n/10=ntx-Regular-tlf-t1 at 10.0pt not loadable: Metric (TFM) file not f',
+      'ound.',
+      '!pdfTeX error: pdflatex (file ntx-Regular.pfb): cannot open Type 1 font file for reading',
+    ].join('\n');
+    expect(missingFiles(log).files).toEqual(['ntx-Regular-tlf-t1.tfm', 'ntx-Regular.pfb']);
+    expect(missingFiles('!pdfTeX error: /bin/busytex (file txsy): Font txsy at 360 not found').unmappedFonts).toEqual(['txsy']);
+  });
+  it('missingFiles：見つからない TikZ のライブラリを拾う', () => {
+    const log = "! Package tikz Error: I did not find the tikz library 'tikzmark'. I looked for \nfiles named tikzlibrarytikzmark.code.tex";
+    expect(missingFiles(log).tikzLibraries).toEqual(['tikzmark']);
+    expect(missingFiles(log).files).toEqual(['tikzlibrarytikzmark.code.tex', 'pgflibrarytikzmark.code.tex']);
+  });
+  it('\\maketitle も Abstract も無ければ、最初の \\section の手前までを表紙とする（手で組んだタイトルページ）', () => {
+    const src = '\\documentclass{article}\\begin{document}\\begin{center}{\\Huge T}\\end{center}Abs.\n\\section{Intro}x\\end{document}';
+    const r = patchSource(src, { mug: mug(), phase: 'front' });
+    expect(r.cutReason).toBe('section');
+    expect(r.source).toContain('{\\Huge T}');
+    expect(r.source).not.toContain('\\section{Intro}');
   });
   it('\\maketitle も Abstract も無ければエラー', () => {
     expect(() => patchSource('\\documentclass{article}\\begin{document}x\\end{document}', { mug: mug() })).toThrow(PatchError);
