@@ -58,7 +58,7 @@
   "ieeetran": {
     "id": "ieeetran",
     "originalOk": true,
-    "ms": 1372,
+    "ms": 1398,
     "intro": true,
     "messages": [
       "IEEEtran.bst が無いため、番号の付け方が同じ ieeetr.bst で引用番号を解決しました"

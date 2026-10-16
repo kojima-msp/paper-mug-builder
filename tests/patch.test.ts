@@ -175,6 +175,9 @@ describe('original：IEEEtran conference', () => {
     expect(full.source).toContain('\\@ifundefined{mug@origtitle}{\\let\\mug@origtitle\\@title\\def\\@title{\\mug@titletop\\mug@titlesize\\mug@origtitle\\mug@titleend}}{}');
     expect(full.source).toContain('\\write-1{MUG-TITLEEND=\\the\\pdflastypos}');
   });
+  it('conference モードの \\IEEEaftertitletext のロックを解除する（解除しないと Abstract が黙って捨てられる）', () => {
+    expect(full.source).toContain('\\IEEEoverridecommandlockouts');
+  });
   it('タイトル部分の後の、行を格子に揃えるための空きを入れない', () => {
     expect(full.source).toContain('\\long\\def\\IEEEquantizevspace#1[#2]#3[#4]#5#6#7{#1}');
   });
