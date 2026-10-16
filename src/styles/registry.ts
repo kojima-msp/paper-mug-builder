@@ -1,0 +1,16 @@
+// 自動生成（scripts/gen-styles.mjs）。手で編集しない。スタイルを足したら npm run styles
+import type { StyleFiles, StyleSpec } from './spec';
+import ieeetran_original_preamble_tex from './ieeetran/original-preamble.tex?raw';
+import ieeetran_reflow_preamble_tex from './ieeetran/reflow-preamble.tex?raw';
+import ieeetran_title_abstract_tex from './ieeetran/title-abstract.tex?raw';
+import revtex_after_bibliography_tex from './revtex/after-bibliography.tex?raw';
+import revtex_before_textwidth_tex from './revtex/before-textwidth.tex?raw';
+import revtex_original_preamble_tex from './revtex/original-preamble.tex?raw';
+import generic_title_abstract_tex from './generic/title-abstract.tex?raw';
+
+export const registry: { spec: StyleSpec; files: StyleFiles }[] = [
+  { spec: {"id":"ieeeoj","label":"IEEEoj（IEEE Open Journal）","description":"IEEE Open Journal 系（OJSP、OJIM など）。IEEEtran をもとにしたクラスで、ファイル名は ieeeoj.cls、\\documentclass{IEEEoj} と書かれることが多い。Abstract と Index Terms は \\maketitle より前に書き、クラスがタイトル部分（全幅）に出すので動かさない。","match":{"classes":["IEEEoj"]},"keywordEnvs":["IEEEkeywords"],"bstSubstitutes":{"IEEEtran":"ieeetr","IEEEtranN":"unsrtnat","IEEEtranS":"plain"}}, files: {  } },
+  { spec: {"id":"ieeetran","label":"IEEEtran","description":"IEEE の会議・論文誌。2 段組のまま、Abstract と Keywords を \\IEEEaftertitletext でタイトル直下の全幅領域に移す（クラス本来の「Abstract—」の書式のまま）。","match":{"classes":["IEEEtran"]},"keywordEnvs":["IEEEkeywords"],"warnings":[{"if":"\\\\IEEEtitleabstractindextext\\b|\\\\documentclass\\s*\\[[^\\]]*\\bcompsoc\\b","message":"IEEEtran の compsoc（\\IEEEtitleabstractindextext）方式は PoC の対象外です。Abstract が出ないことがあります"}],"bstSubstitutes":{"IEEEtran":"ieeetr","IEEEtranN":"unsrtnat","IEEEtranS":"plain"},"original":{"titleAbstract":{"file":"title-abstract.tex","unlessOptions":["onecolumn","compsoc"]},"preamble":"original-preamble.tex"},"reflow":{"removeOptions":["twocolumn","onecolumn"],"addOptions":["onecolumn"],"preamble":"reflow-preamble.tex"}}, files: { "original-preamble.tex": ieeetran_original_preamble_tex, "reflow-preamble.tex": ieeetran_reflow_preamble_tex, "title-abstract.tex": ieeetran_title_abstract_tex } },
+  { spec: {"id":"revtex","label":"REVTeX（APS・AIP）・AASTeX（AAS）","description":"REVTeX 4.2（Physical Review など）と、REVTeX を内蔵した AASTeX（ApJ・AJ など）。Abstract と \\keywords は \\maketitle より前に書き、クラスがタイトル部分に組むので動かさない。\\maketitle を書かなくても最初の \\section でタイトル部分が出るので、\\section の手前で切るときは補う。","match":{"classes":["/^revtex4(-[12])?$/","/^aastex\\d*$/"]},"keywordEnvs":["keywords"],"original":{"beforeTextwidth":"before-textwidth.tex","preamble":"original-preamble.tex","afterBibliography":"after-bibliography.tex","ensureMaketitle":true},"reflow":{"removeOptions":["twocolumn","reprint"]}}, files: { "after-bibliography.tex": revtex_after_bibliography_tex, "before-textwidth.tex": revtex_before_textwidth_tex, "original-preamble.tex": revtex_original_preamble_tex } },
+  { spec: {"id":"generic","label":"汎用（article など）","description":"どのスタイルにも当たらないときの受け皿。2 段組（twocolumn オプション）のときだけ、Abstract をタイトルと同じ全幅の領域に移す。","match":{"classes":["*"]},"keywordEnvs":["keywords","keyword"],"original":{"titleAbstract":{"file":"title-abstract.tex","ifOptions":["twocolumn"]}},"reflow":{"removeOptions":["twocolumn"]}}, files: { "title-abstract.tex": generic_title_abstract_tex } },
+];

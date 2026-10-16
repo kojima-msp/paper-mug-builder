@@ -1,14 +1,13 @@
-// スタイル（文書クラス）ごとの対応。新しいスタイルは、フォルダを 1 つ足して下の一覧に加える（README.md 参照）。
-import { generic } from './generic';
-import { ieeeoj } from './ieeeoj';
-import { ieeetran } from './ieeetran';
-import { revtex } from './revtex';
+// スタイル（文書クラス）ごとの対応。新しいスタイルは、style.json と .tex を入れたフォルダを足す（README.md 参照）。
+// 一覧（registry.ts）は scripts/gen-styles.mjs が作る（npm run styles。テスト・開発・ビルドの前にも自動で走る）
+import { registry } from './registry';
+import { fromSpec } from './spec';
 import type { StyleAdapter } from './types';
 
 export type { StyleAdapter } from './types';
 
-/** 上から順に match するものを使う。generic は最後に置く。 */
-export const styles: StyleAdapter[] = [ieeetran, ieeeoj, revtex, generic];
+/** 上から順に match するものを使う。generic は最後（どのクラスにも当てはまる） */
+export const styles: StyleAdapter[] = registry.map(({ spec, files }) => fromSpec(spec, files));
 
 export function pickStyle(cls: string, options: string[], overrideId?: string): StyleAdapter {
   if (overrideId) {

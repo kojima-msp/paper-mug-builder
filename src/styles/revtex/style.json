@@ -1,0 +1,26 @@
+{
+  "id": "revtex",
+  "label": "REVTeX（APS・AIP）・AASTeX（AAS）",
+  "description": "REVTeX 4.2（Physical Review など）と、REVTeX を内蔵した AASTeX（ApJ・AJ など）。Abstract と \\keywords は \\maketitle より前に書き、クラスがタイトル部分に組むので動かさない。\\maketitle を書かなくても最初の \\section でタイトル部分が出るので、\\section の手前で切るときは補う。",
+  "match": {
+    "classes": [
+      "/^revtex4(-[12])?$/",
+      "/^aastex\\d*$/"
+    ]
+  },
+  "keywordEnvs": [
+    "keywords"
+  ],
+  "original": {
+    "beforeTextwidth": "before-textwidth.tex",
+    "preamble": "original-preamble.tex",
+    "afterBibliography": "after-bibliography.tex",
+    "ensureMaketitle": true
+  },
+  "reflow": {
+    "removeOptions": [
+      "twocolumn",
+      "reprint"
+    ]
+  }
+}

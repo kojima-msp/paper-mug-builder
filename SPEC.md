@@ -214,7 +214,7 @@ zip ─▶ 展開・正規化 ─▶ メイン tex 特定 ─▶ \input 展開�
 - **サブフォルダのスタイルファイル**：zip のサブフォルダにある `.sty`・`.cls`・`.bst` などは、メインと同じ場所にも置く（TeX はカレントディレクトリしか探さないため）。
 
 ### 5.2 スタイル（クラス）別の対応（`src/styles/`）
-- スタイルごとのフォルダに、判定と設定（`index.ts`）と、当てる TeX のコード片（`.tex`）を置く。全スタイル共通の TeX は `src/styles/common/` に置く。`patch.ts` には切り貼りの処理だけを残す。
+- スタイルごとのフォルダに、設定（`style.json`）と、当てる TeX のコード片（`.tex`）を置く。**TypeScript は書かなくてよい**（プルリクエストで受け付けやすくするため）。`scripts/gen-styles.mjs` がフォルダを集めて検証し、`src/styles/registry.ts` を作る（`npm run styles`。テスト・開発・ビルドの前にも自動で走る）。全スタイル共通の TeX は `src/styles/common/` に置く。`patch.ts` には切り貼りの処理だけを残す。
 - `.tex` は `?raw` で文字列として読み込み、`fill()` で `{{name}}` に値を差し込む。CLI（tsx）では `scripts/raw-loader.mjs`（Node のモジュールフック）で `?raw` を扱う。
 - 各コード片の先頭には `% [paper-mug] …` のコメントを置き、パッチ後の tex のどこに当てたかを分かるようにする。
 - 足し方は `src/styles/README.md` を参照。

@@ -2,7 +2,7 @@
   "revtex": {
     "id": "revtex",
     "originalOk": true,
-    "ms": 2970,
+    "ms": 3218,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -58,7 +58,7 @@
   "ieeetran": {
     "id": "ieeetran",
     "originalOk": true,
-    "ms": 1968,
+    "ms": 1372,
     "intro": true,
     "messages": [
       "IEEEtran.bst が無いため、番号の付け方が同じ ieeetr.bst で引用番号を解決しました"

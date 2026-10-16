@@ -1,0 +1,18 @@
+{
+  "id": "ieeeoj",
+  "label": "IEEEoj（IEEE Open Journal）",
+  "description": "IEEE Open Journal 系（OJSP、OJIM など）。IEEEtran をもとにしたクラスで、ファイル名は ieeeoj.cls、\\documentclass{IEEEoj} と書かれることが多い。Abstract と Index Terms は \\maketitle より前に書き、クラスがタイトル部分（全幅）に出すので動かさない。",
+  "match": {
+    "classes": [
+      "IEEEoj"
+    ]
+  },
+  "keywordEnvs": [
+    "IEEEkeywords"
+  ],
+  "bstSubstitutes": {
+    "IEEEtran": "ieeetr",
+    "IEEEtranN": "unsrtnat",
+    "IEEEtranS": "plain"
+  }
+}

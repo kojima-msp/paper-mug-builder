@@ -1,0 +1,44 @@
+{
+  "id": "ieeetran",
+  "label": "IEEEtran",
+  "description": "IEEE の会議・論文誌。2 段組のまま、Abstract と Keywords を \\IEEEaftertitletext でタイトル直下の全幅領域に移す（クラス本来の「Abstract—」の書式のまま）。",
+  "match": {
+    "classes": [
+      "IEEEtran"
+    ]
+  },
+  "keywordEnvs": [
+    "IEEEkeywords"
+  ],
+  "warnings": [
+    {
+      "if": "\\\\IEEEtitleabstractindextext\\b|\\\\documentclass\\s*\\[[^\\]]*\\bcompsoc\\b",
+      "message": "IEEEtran の compsoc（\\IEEEtitleabstractindextext）方式は PoC の対象外です。Abstract が出ないことがあります"
+    }
+  ],
+  "bstSubstitutes": {
+    "IEEEtran": "ieeetr",
+    "IEEEtranN": "unsrtnat",
+    "IEEEtranS": "plain"
+  },
+  "original": {
+    "titleAbstract": {
+      "file": "title-abstract.tex",
+      "unlessOptions": [
+        "onecolumn",
+        "compsoc"
+      ]
+    },
+    "preamble": "original-preamble.tex"
+  },
+  "reflow": {
+    "removeOptions": [
+      "twocolumn",
+      "onecolumn"
+    ],
+    "addOptions": [
+      "onecolumn"
+    ],
+    "preamble": "reflow-preamble.tex"
+  }
+}

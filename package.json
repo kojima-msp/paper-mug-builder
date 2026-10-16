@@ -11,7 +11,14 @@
     "typecheck": "tsc --noEmit",
     "fetch-busytex": "sh scripts/fetch-busytex.sh",
     "patch-cli": "tsx --import ./scripts/raw-loader.mjs scripts/patch-cli.ts",
-    "gallery": "tsx --import ./scripts/raw-loader.mjs scripts/gallery.ts"
+    "gallery": "tsx --import ./scripts/raw-loader.mjs scripts/gallery.ts",
+    "styles": "node scripts/gen-styles.mjs",
+    "predev": "node scripts/gen-styles.mjs",
+    "prebuild": "node scripts/gen-styles.mjs",
+    "pretest": "node scripts/gen-styles.mjs",
+    "pretypecheck": "node scripts/gen-styles.mjs",
+    "prepatch-cli": "node scripts/gen-styles.mjs",
+    "pregallery": "node scripts/gen-styles.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",

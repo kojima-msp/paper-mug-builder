@@ -1,0 +1,27 @@
+{
+  "id": "generic",
+  "label": "汎用（article など）",
+  "description": "どのスタイルにも当たらないときの受け皿。2 段組（twocolumn オプション）のときだけ、Abstract をタイトルと同じ全幅の領域に移す。",
+  "match": {
+    "classes": [
+      "*"
+    ]
+  },
+  "keywordEnvs": [
+    "keywords",
+    "keyword"
+  ],
+  "original": {
+    "titleAbstract": {
+      "file": "title-abstract.tex",
+      "ifOptions": [
+        "twocolumn"
+      ]
+    }
+  },
+  "reflow": {
+    "removeOptions": [
+      "twocolumn"
+    ]
+  }
+}
