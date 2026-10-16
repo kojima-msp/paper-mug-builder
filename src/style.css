@@ -1,105 +1,342 @@
+/* Pico CSS（pumpkin）の上に、レイアウトと細部だけを足す */
 :root {
-  --bg: #fafaf9;
-  --fg: #1c1917;
-  --muted: #78716c;
-  --line: #e7e5e4;
-  --accent: #2563eb;
-  --warn: #b45309;
-  --error: #b91c1c;
-  --panel: #ffffff;
-  color-scheme: light dark;
+  --mug-radius: 0.9rem;
+  --mug-muted: var(--pico-muted-color);
+  --mug-line: var(--pico-muted-border-color);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1917;
-    --fg: #f5f5f4;
-    --muted: #a8a29e;
-    --line: #44403c;
-    --accent: #60a5fa;
-    --warn: #fbbf24;
-    --error: #f87171;
-    --panel: #292524;
+:root:not([data-theme='dark']) {
+  --pico-background-color: #faf8f5;
+  --pico-card-background-color: #ffffff;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* ヘッダー */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: 1.5rem;
+  padding-bottom: 0.5rem;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.brand .mark {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--pico-primary);
+  flex: none;
+}
+.brand h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
+}
+.tagline {
+  margin: 0;
+  color: var(--mug-muted);
+  font-size: 0.9rem;
+}
+.status {
+  margin: 0;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--mug-muted);
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--mug-line);
+}
+.status.ready {
+  color: var(--pico-ins-color);
+  border-color: color-mix(in srgb, var(--pico-ins-color) 40%, transparent);
+}
+.status.error {
+  color: var(--pico-del-color);
+  border-color: color-mix(in srgb, var(--pico-del-color) 40%, transparent);
+}
+
+/* 2 列のレイアウト。プレビューはスクロールしても見え続ける */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) 1fr;
+  gap: 1.5rem;
+  align-items: start;
+  padding-top: 1rem;
+}
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
   }
 }
-
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
-  background: var(--bg);
-  color: var(--fg);
-  font-size: 14px;
-}
-header, footer { padding: 12px 16px; }
-header h1 { margin: 0; font-size: 18px; }
-header small { color: var(--muted); font-weight: normal; }
-footer { color: var(--muted); font-size: 12px; }
-a { color: var(--accent); }
-
-.status { margin: 4px 0 0; color: var(--muted); }
-.status.ready { color: var(--fg); }
-.status.error { color: var(--error); }
-
-main {
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) 1fr;
-  gap: 16px;
-  padding: 0 16px;
-}
-@media (max-width: 720px) {
-  main { grid-template-columns: 1fr; }
-}
-
-.controls { display: flex; flex-direction: column; gap: 10px; }
-.controls label { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.controls label.file { flex-direction: column; align-items: flex-start; }
-fieldset {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px 10px;
+.steps {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  background: var(--panel);
+  gap: 1rem;
+  min-width: 0;
 }
-legend { color: var(--muted); padding: 0 4px; }
-input[type="number"] { width: 5em; }
-.k input { flex: 1; }
-.hint { margin: 0; color: var(--muted); }
-.hint.warn { color: var(--warn); }
+article {
+  margin: 0;
+  border-radius: var(--mug-radius);
+}
+article > header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  border-top-left-radius: var(--mug-radius);
+  border-top-right-radius: var(--mug-radius);
+}
+.num {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--pico-primary);
+  color: var(--pico-primary-inverse);
+  font-size: 0.85rem;
+}
 
-.buttons { display: flex; gap: 8px; }
-button {
-  font: inherit;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
+/* zip のドロップ枠 */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1.5rem 1rem;
+  margin-bottom: var(--pico-spacing);
+  border: 2px dashed var(--mug-line);
+  border-radius: var(--mug-radius);
+  text-align: center;
   cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
 }
-button:disabled { opacity: 0.5; cursor: default; }
+.dropzone:hover,
+.dropzone.dragover {
+  border-color: var(--pico-primary);
+  background: color-mix(in srgb, var(--pico-primary) 6%, transparent);
+}
+.dropzone.loaded {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--pico-primary) 60%, transparent);
+}
+.dropzone input {
+  display: none;
+}
+.dropzone small {
+  color: var(--mug-muted);
+}
 
-#messages { margin: 0; padding-left: 18px; }
-#messages li.warn { color: var(--warn); }
-#messages li.error { color: var(--error); }
-#messages li.info { color: var(--muted); }
+/* 寸法は 2 列で */
+.dims {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 0.75rem;
+}
+.dims legend {
+  grid-column: 1 / -1;
+}
+.dims input {
+  margin-bottom: 0.5rem;
+}
+.range span {
+  display: flex;
+  justify-content: space-between;
+}
+.range output {
+  font-weight: 600;
+  color: var(--pico-primary);
+}
+.hint {
+  margin-top: -0.5rem;
+  font-size: 0.8rem;
+  color: var(--mug-muted);
+}
+.hint.warn {
+  color: var(--pico-del-color);
+}
 
-#downloads { display: flex; gap: 12px; }
-pre#log {
+.build {
+  width: 100%;
+  font-size: 1.05rem;
+}
+
+/* メッセージ */
+.messages {
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+.messages:empty {
+  display: none;
+}
+.messages li {
+  list-style: none;
+  margin: 0 0 0.35rem;
+  padding: 0.4rem 0.7rem;
+  border-left: 3px solid var(--mug-line);
+  border-radius: 0.3rem;
+  background: var(--pico-card-background-color);
+  color: var(--mug-muted);
+}
+.messages li.warn {
+  border-left-color: #d9a400;
+  color: var(--pico-color);
+}
+.messages li.error {
+  border-left-color: var(--pico-del-color);
+  color: var(--pico-del-color);
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.downloads [role='button'] {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 0.9rem;
+}
+.downloads #dl-mug,
+.downloads .png-row {
+  flex-basis: 100%;
+}
+.png-row {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0;
+}
+.png-row button {
+  flex: 1;
+  margin: 0;
+  font-size: 0.9rem;
+}
+.png-row select {
+  width: auto;
+  margin: 0;
+}
+
+.log pre {
   max-height: 320px;
   overflow: auto;
-  font-size: 11px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  padding: 8px;
+  font-size: 0.7rem;
   white-space: pre-wrap;
 }
 
-.preview iframe {
+/* プレビュー */
+.preview {
+  position: sticky;
+  top: 1rem;
+}
+.preview-frame {
+  position: relative;
+  height: min(78vh, 760px);
+  min-height: 360px;
+  border-radius: calc(var(--mug-radius) - 0.3rem);
+  overflow: hidden;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--mug-line) 50%, transparent) 0 25%, transparent 0 50%) 0 0 / 20px 20px;
+}
+.preview-frame iframe {
   width: 100%;
-  height: min(80vh, 760px);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
+  height: 100%;
+  border: 0;
+}
+.preview-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  color: var(--mug-muted);
+}
+.preview-empty svg {
+  width: 4rem;
+  height: 4rem;
+  opacity: 0.5;
+}
+.preview-empty p {
+  max-width: 22rem;
+  margin: 0;
+}
+
+.site-footer {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  color: var(--mug-muted);
+}
+
+/* 幅・高さ・余白・塗り足しの図 */
+.dims-diagram {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  aspect-ratio: 320 / 220;
+  height: auto;
+  margin: 0 auto 0.75rem;
+  font-family: var(--pico-font-family);
+  overflow: visible;
+}
+.dims-diagram .bleed-area {
+  fill: url(#mug-hatch);
+  stroke: var(--mug-line);
+  stroke-dasharray: 3 3;
+}
+.dims-diagram .hatch {
+  stroke: color-mix(in srgb, var(--pico-del-color) 45%, transparent);
+  stroke-width: 2;
+}
+.dims-diagram .print-area {
+  fill: var(--pico-card-background-color);
+  stroke: var(--pico-primary);
+  stroke-width: 2;
+}
+.dims-diagram .content-area {
+  fill: color-mix(in srgb, var(--pico-primary) 7%, transparent);
+  stroke: var(--pico-primary);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.dims-diagram .text-line {
+  stroke: var(--mug-line);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.dims-diagram .dim-line {
+  stroke: var(--mug-muted);
+  stroke-width: 1;
+}
+.dims-diagram .label {
+  font-size: 14px;
+  fill: var(--pico-color);
+}
+.dims-diagram .sub,
+.dims-diagram .caption {
+  font-size: 11.5px;
+  fill: var(--mug-muted);
+}
+/* 入力欄にカーソルがあるとき、図の対応する部分を強調する */
+.dims-diagram .part {
+  transition: opacity 0.15s;
+}
+.dims-diagram:has(.focus) .part:not(.focus) {
+  opacity: 0.35;
+}
+.dims-diagram .part.focus .label {
+  fill: var(--pico-primary);
+  font-weight: 700;
+}
+.dims-diagram .part.focus .dim-line {
+  stroke: var(--pico-primary);
+  stroke-width: 1.6;
 }

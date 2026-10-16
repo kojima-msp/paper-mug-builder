@@ -3,79 +3,113 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>論文マグ 表紙ジェネレータ</title>
-    <link rel="stylesheet" href="./src/style.css" />
+    <meta name="color-scheme" content="light dark" />
+    <title>論文マグ</title>
   </head>
   <body>
-    <header>
-      <h1>論文マグ 表紙ジェネレータ <small>PoC</small></h1>
-      <p id="engine-status" class="status">TeX エンジンを読み込み中…（初回は約 110 MB のダウンロードがあります）</p>
+    <header class="container site-header">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M6 7h16v14a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" />
+          <path d="M22 11h2.5a3.5 3.5 0 0 1 0 7H22" fill="none" stroke="currentColor" stroke-width="2.2" />
+          <path d="M10 12h8M10 16h8M10 20h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+        <div>
+          <h1>論文マグ</h1>
+          <p class="tagline">LaTeX の論文の表紙を、マグカップに印刷できる PDF に</p>
+        </div>
+      </div>
+      <p id="engine-status" class="status" aria-busy="true">TeX エンジンを読み込み中…（初回は約 110 MB）</p>
     </header>
-    <main>
-      <section class="controls">
-        <label class="file">
-          LaTeX プロジェクト（zip）
-          <input id="zip" type="file" accept=".zip,application/zip" />
-        </label>
 
-        <label id="main-row" hidden>
-          メイン tex
-          <select id="main"></select>
-        </label>
-
-        <label>
-          クラス
-          <select id="adapter"><option value="">自動判定</option></select>
-        </label>
-
-        <fieldset>
-          <legend>マグの印刷範囲</legend>
-          <label>幅 <input id="printWidth" type="number" min="20" max="300" step="1" /> mm</label>
-          <label>高さ <input id="printHeight" type="number" min="20" max="200" step="1" /> mm</label>
-          <label>余白 <input id="margin" type="number" min="0" max="30" step="0.5" /> mm</label>
-          <label>塗り足し <input id="bleed" type="number" min="0" max="10" step="0.5" /> mm</label>
-        </fieldset>
-
-        <fieldset>
-          <legend>組み方</legend>
-          <label class="k">
-            本文の文字サイズ <input id="bodyPt" type="range" min="3.5" max="9" step="0.5" />
-            <output id="bodyPt-value"></output>
+    <main class="container layout">
+      <div class="steps">
+        <article class="step">
+          <header><span class="num">1</span>論文を選ぶ</header>
+          <label class="dropzone" id="dropzone" for="zip">
+            <input id="zip" type="file" accept=".zip,application/zip" />
+            <strong id="zip-name">LaTeX プロジェクトの zip</strong>
+            <small>ここにドロップ、またはクリックして選ぶ（Overleaf の「Download Source」など）</small>
           </label>
-          <label><input id="includeIntro" type="checkbox" /> 余白にイントロの冒頭を入れる</label>
-          <label><input id="includeHeaderFooter" type="checkbox" /> ヘッダー・フッターを含める</label>
+          <label id="main-row" hidden>
+            メイン tex
+            <select id="main"></select>
+          </label>
+          <label>
+            クラス
+            <select id="adapter"><option value="">自動判定</option></select>
+          </label>
+        </article>
+
+        <article class="step">
+          <header><span class="num">2</span>仕上がり</header>
+          <svg id="dims-diagram" class="dims-diagram" role="img" aria-label="幅・高さ・余白・塗り足しの位置"></svg>
+          <fieldset class="dims">
+            <legend>マグの印刷範囲 (mm)</legend>
+            <label>幅<input id="printWidth" type="number" min="20" max="300" step="1" /></label>
+            <label>高さ<input id="printHeight" type="number" min="20" max="200" step="1" /></label>
+            <label>余白<input id="margin" type="number" min="0" max="30" step="0.5" /></label>
+            <label>塗り足し<input id="bleed" type="number" min="0" max="10" step="0.5" /></label>
+          </fieldset>
+          <label class="range">
+            <span>本文の文字サイズ <output id="bodyPt-value"></output></span>
+            <input id="bodyPt" type="range" min="3.5" max="9" step="0.5" />
+          </label>
           <p id="font-size" class="hint"></p>
+          <fieldset>
+            <label><input id="includeIntro" type="checkbox" role="switch" />余白にイントロの冒頭を入れる</label>
+            <label><input id="includeHeaderFooter" type="checkbox" role="switch" />ヘッダー・フッターを含める</label>
+          </fieldset>
           <label>
             縦位置
             <select id="valign"><option value="center">中央</option><option value="top">上寄せ</option></select>
           </label>
-        </fieldset>
+        </article>
 
-        <div class="buttons">
-          <button id="build" disabled>組版</button>
+        <button id="build" class="build" disabled>組版する</button>
+
+        <ul id="messages" class="messages"></ul>
+
+        <div id="downloads" class="downloads" hidden>
+          <a id="dl-mug" download="mug.pdf" role="button">mug.pdf をダウンロード</a>
+          <div class="png-row" role="group">
+            <button id="dl-png" class="secondary">画像（PNG）でダウンロード</button>
+            <select id="png-dpi" aria-label="画像の解像度">
+              <option value="300">300 dpi</option>
+              <option value="600">600 dpi</option>
+            </select>
+          </div>
+          <a id="dl-cover" download="cover.pdf" role="button" class="secondary outline">cover.pdf</a>
+          <a id="dl-tex" download="__mug_main.tex" role="button" class="secondary outline">パッチ後の tex</a>
         </div>
 
-        <ul id="messages"></ul>
-
-        <div id="downloads" hidden>
-          <a id="dl-mug" download="mug.pdf">mug.pdf</a>
-          <a id="dl-cover" download="cover.pdf">cover.pdf</a>
-          <a id="dl-tex" download="__mug_main.tex">__mug_main.tex</a>
-        </div>
-
-        <details>
-          <summary>ログ</summary>
+        <details class="log">
+          <summary>組版のログ</summary>
           <pre id="log"></pre>
         </details>
-      </section>
+      </div>
 
-      <section class="preview">
-        <iframe id="preview" title="マグ用 PDF のプレビュー"></iframe>
-      </section>
+      <article class="preview">
+        <header>プレビュー</header>
+        <div class="preview-frame">
+          <div id="preview-empty" class="preview-empty">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M6 7h16v14a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+              <path d="M22 11h2.5a3.5 3.5 0 0 1 0 7H22" fill="none" stroke="currentColor" stroke-width="1.5" />
+            </svg>
+            <p>zip を選んで「組版する」を押すと、ここにマグ用の PDF が出ます</p>
+          </div>
+          <iframe id="preview" title="マグ用 PDF のプレビュー" hidden></iframe>
+        </div>
+      </article>
     </main>
-    <footer>
-      TeX エンジン：<a href="https://github.com/busytex/busytex">BusyTeX</a>（TeX Live 2023。pdfTeX ほか各ソフトウェアのライセンスに従います）。
-      処理はすべてブラウザ内で行われ、ファイルは送信されません。
+
+    <footer class="container site-footer">
+      <small>
+        処理はすべてブラウザ内で行い、ファイルはどこにも送信しません。
+        TeX エンジン：<a href="https://github.com/busytex/busytex">BusyTeX</a>（TeX Live 2023。pdfTeX ほか各ソフトウェアのライセンスに従います）。
+        <a href="https://github.com/kojima-msp/paper-mug-builder">ソースコード</a>
+      </small>
     </footer>
     <script type="module" src="./src/main.ts"></script>
   </body>

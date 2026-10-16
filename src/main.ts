@@ -1,3 +1,6 @@
+import '@picocss/pico/css/pico.pumpkin.min.css';
+import './style.css';
+import { renderDiagram, type DimPart } from './diagram';
 import { styles } from './styles';
 import { buildCover, type BuildResult } from './build';
 import { BusytexEngine } from './engine';
@@ -24,8 +27,30 @@ const messages = $<HTMLUListElement>('messages');
 const downloads = $<HTMLDivElement>('downloads');
 const logPre = $<HTMLPreElement>('log');
 const preview = $<HTMLIFrameElement>('preview');
+const previewEmpty = $<HTMLDivElement>('preview-empty');
+const dropzone = $<HTMLLabelElement>('dropzone');
+const zipName = $<HTMLElement>('zip-name');
+const pngBtn = $<HTMLButtonElement>('dl-png');
+const pngDpi = $<HTMLSelectElement>('png-dpi');
+/** 直前に作ったマグ用 PDF（画像でダウンロードするため） */
+let lastMugPdf: Uint8Array | undefined;
 
 const numberFields = ['printWidth', 'printHeight', 'margin', 'bleed'] as const;
+const diagram = document.getElementById('dims-diagram') as unknown as SVGSVGElement;
+let focusedDim: DimPart | undefined;
+const updateDiagram = () => renderDiagram(diagram, readMug(), focusedDim);
+for (const f of numberFields) {
+  const input = $<HTMLInputElement>(f);
+  input.addEventListener('input', updateDiagram);
+  input.addEventListener('focus', () => {
+    focusedDim = f;
+    updateDiagram();
+  });
+  input.addEventListener('blur', () => {
+    focusedDim = undefined;
+    updateDiagram();
+  });
+}
 
 for (const a of styles) adapterSelect.add(new Option(a.label, a.id));
 for (const f of numberFields) $<HTMLInputElement>(f).value = String(DEFAULT_MUG[f]);
@@ -50,11 +75,13 @@ engine
     readyText = `TeX エンジン準備完了（${((performance.now() - t0) / 1000).toFixed(1)} 秒）`;
     engineStatus.textContent = readyText;
     engineStatus.className = 'status ready';
+    engineStatus.removeAttribute('aria-busy');
     updateButtons();
   })
   .catch((e) => {
     engineStatus.textContent = `TeX エンジンの読み込みに失敗しました：${e.message}`;
     engineStatus.className = 'status error';
+    engineStatus.removeAttribute('aria-busy');
   });
 
 function readMug(): MugOptions {
@@ -91,6 +118,9 @@ function updateFontHint() {
 function updateButtons() {
   const can = engineReady && !!files && !!mainSelect.value && !busy;
   buildBtn.disabled = !can;
+  // 組版中は回転する印を出す（Pico の aria-busy）
+  if (busy) buildBtn.setAttribute('aria-busy', 'true');
+  else buildBtn.removeAttribute('aria-busy');
 }
 
 function say(text: string, kind: 'info' | 'warn' | 'error' = 'info') {
@@ -100,11 +130,29 @@ function say(text: string, kind: 'info' | 'warn' | 'error' = 'info') {
   messages.append(li);
 }
 
-zipInput.addEventListener('change', async () => {
+zipInput.addEventListener('change', () => {
+  const file = zipInput.files?.[0];
+  if (file) loadZip(file);
+});
+// zip をドロップ枠に落としても読み込む
+for (const ev of ['dragenter', 'dragover'] as const) {
+  dropzone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+}
+for (const ev of ['dragleave', 'drop'] as const) dropzone.addEventListener(ev, () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files[0];
+  if (file) loadZip(file);
+});
+
+async function loadZip(file: File) {
   messages.replaceChildren();
   downloads.hidden = true;
-  const file = zipInput.files?.[0];
-  if (!file) return;
+  zipName.textContent = file.name;
+  dropzone.classList.add('loaded');
   try {
     files = readZip(new Uint8Array(await file.arrayBuffer()));
   } catch (e) {
@@ -125,7 +173,7 @@ zipInput.addEventListener('change', async () => {
   }
   say(`${files.size} 個のファイルを読み込みました`);
   updateButtons();
-});
+}
 
 mainSelect.addEventListener('change', updateButtons);
 bodyPtInput.addEventListener('input', () => {
@@ -135,6 +183,26 @@ bodyPtInput.addEventListener('input', () => {
 });
 
 buildBtn.addEventListener('click', run);
+
+// 画像（PNG）でダウンロード。pdf.js はここで初めて読み込む
+pngBtn.addEventListener('click', async () => {
+  if (!lastMugPdf) return;
+  pngBtn.setAttribute('aria-busy', 'true');
+  pngBtn.disabled = true;
+  try {
+    const dpi = Number(pngDpi.value);
+    const { pdfToPng } = await import('./raster');
+    const url = URL.createObjectURL(await pdfToPng(lastMugPdf, dpi));
+    const a = Object.assign(document.createElement('a'), { href: url, download: `mug-${dpi}dpi.png` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  } catch (e) {
+    say(`画像にできませんでした：${(e as Error).message}`, 'error');
+  } finally {
+    pngBtn.removeAttribute('aria-busy');
+    pngBtn.disabled = false;
+  }
+});
 
 async function run() {
   if (!files || busy) return;
@@ -193,8 +261,11 @@ async function show(r: BuildResult) {
   say(`中身 ${measure.finalWidth.toFixed(1)} × ${measure.finalHeight.toFixed(1)} mm（${measure.bodyPt !== undefined ? `本文 ${measure.bodyPt.toFixed(1)}pt` : ''}${measure.titlePt !== undefined ? `、タイトル ${measure.titlePt.toFixed(1)}pt` : ''}）`);
 
   const mugPdf = await imposeParts(r.parts, r.mug);
+  lastMugPdf = mugPdf;
   const mugUrl = blobUrl(mugPdf, 'application/pdf');
   preview.src = mugUrl;
+  preview.hidden = false;
+  previewEmpty.hidden = true;
   $<HTMLAnchorElement>('dl-mug').href = mugUrl;
   $<HTMLAnchorElement>('dl-cover').href = blobUrl(compile.pdf, 'application/pdf');
   $<HTMLAnchorElement>('dl-mug').hidden = false;
@@ -203,3 +274,4 @@ async function show(r: BuildResult) {
 }
 
 updateFontHint();
+updateDiagram();
