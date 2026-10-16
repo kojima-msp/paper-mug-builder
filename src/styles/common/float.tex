@@ -1,0 +1,9 @@
+% [paper-mug] 図表：浮動させずに、本文幅の箱として組む。箱の中は元の環境と同じ扱い（\@captype）なので、キャプションはクラスの書式のまま。
+% 番号は元の論文と同じにする（その図表の前までのキャプションの数を入れておく）
+\makeatletter
+\newenvironment{mugfloat}[2]{\par\noindent\setcounter{#1}{#2}\begin{minipage}{\textwidth}\def\@captype{#1}}{\end{minipage}\par}
+% 2 段組のクラスは 1 段にする（段の幅を本文幅にそろえ、figure も figure* も同じ幅で組む）。REVTeX は \onecolumngrid
+\def\mugonecolumn{\@ifundefined{onecolumngrid}{\if@twocolumn\onecolumn\fi}{\onecolumngrid}}
+% 図表ごとの終端の位置（縮小画像を切り出すため）。MUG-FIG=番号,ページ,高さ（sp）
+\protected\def\mugfigmark#1{\pdfsavepos\write-1{MUG-FIG=#1,\the\c@page,\the\pdflastypos}\nointerlineskip\hrule height0pt depth0pt width0pt\relax}
+\makeatother

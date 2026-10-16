@@ -2,7 +2,8 @@ import '@picocss/pico/css/pico.pumpkin.min.css';
 import './style.css';
 import { renderDiagram, type DimPart } from './diagram';
 import { styles } from './styles';
-import { buildCover, type BuildResult } from './build';
+import { buildCover, buildFloat, buildFloatThumbs, type BuildResult } from './build';
+import { listFloats, type FloatItem } from './floats';
 import { BusytexEngine } from './engine';
 import { imposeParts } from './impose';
 import { DEFAULT_MUG, MIN_FONT_PT, type MugOptions } from './mug';
@@ -32,8 +33,19 @@ const dropzone = $<HTMLLabelElement>('dropzone');
 const zipName = $<HTMLElement>('zip-name');
 const pngBtn = $<HTMLButtonElement>('dl-png');
 const pngDpi = $<HTMLSelectElement>('png-dpi');
+const floatStep = $<HTMLElement>('float-step');
+const floatList = $<HTMLDivElement>('float-list');
+const floatStatus = $<HTMLParagraphElement>('float-status');
+const coverOptions = $<HTMLFieldSetElement>('cover-options');
 /** 直前に作ったマグ用 PDF（画像でダウンロードするため） */
 let lastMugPdf: Uint8Array | undefined;
+/** 作るもの：表紙か図表か */
+let mode: 'cover' | 'figure' = 'cover';
+let floats: FloatItem[] = [];
+let selectedFloat: number | undefined;
+/** 縮小画像を作った対象（zip とメイン）。作り直さないため */
+let thumbsFor: string | undefined;
+let filesKey = '';
 
 const numberFields = ['printWidth', 'printHeight', 'margin', 'bleed'] as const;
 const diagram = document.getElementById('dims-diagram') as unknown as SVGSVGElement;
@@ -77,6 +89,7 @@ engine
     engineStatus.className = 'status ready';
     engineStatus.removeAttribute('aria-busy');
     updateButtons();
+    makeThumbs();
   })
   .catch((e) => {
     engineStatus.textContent = `TeX エンジンの読み込みに失敗しました：${e.message}`;
@@ -109,14 +122,17 @@ function updateFontHint() {
     fontSize.textContent = `マグ上の文字サイズ：本文 ${pt.toFixed(1)}pt${lastSizes.title !== undefined ? ` / タイトル ${lastSizes.title.toFixed(1)}pt` : ''}`;
   } else {
     pt = Number(bodyPtInput.value);
-    fontSize.textContent = 'ヘッダーとタイトルは元の版面の見た目のまま、著者以下をこの文字サイズで組みます（組版後に実際の値を表示）';
+    fontSize.textContent =
+      mode === 'cover'
+        ? 'ヘッダーとタイトルは元の版面の見た目のまま、著者以下をこの文字サイズで組みます（組版後に実際の値を表示）'
+        : '本文をこの文字サイズで組んだときの大きさで、図表を組みます（キャプションは元の論文と同じ比率）';
   }
   fontSize.className = pt < MIN_FONT_PT ? 'hint warn' : 'hint';
   if (pt < MIN_FONT_PT) fontSize.textContent += `：${MIN_FONT_PT}pt を下回っています`;
 }
 
 function updateButtons() {
-  const can = engineReady && !!files && !!mainSelect.value && !busy;
+  const can = engineReady && !!files && !!mainSelect.value && !busy && (mode === 'cover' || selectedFloat !== undefined);
   buildBtn.disabled = !can;
   // 組版中は回転する印を出す（Pico の aria-busy）
   if (busy) buildBtn.setAttribute('aria-busy', 'true');
@@ -172,10 +188,93 @@ async function loadZip(file: File) {
     say('メイン tex の候補が複数あります。選んでください', 'warn');
   }
   say(`${files.size} 個のファイルを読み込みました`);
+  filesKey = `${file.name}:${file.size}:${file.lastModified}`;
+  refreshFloats();
   updateButtons();
 }
 
-mainSelect.addEventListener('change', updateButtons);
+mainSelect.addEventListener('change', () => {
+  refreshFloats();
+  updateButtons();
+});
+
+// --- 作るもの（表紙・図表）---
+for (const r of document.querySelectorAll<HTMLInputElement>('input[name="mode"]')) {
+  r.addEventListener('change', () => {
+    mode = r.value as typeof mode;
+    floatStep.hidden = mode !== 'figure';
+    coverOptions.hidden = mode !== 'cover';
+    lastSizes = undefined;
+    updateFontHint();
+    updateButtons();
+    makeThumbs();
+  });
+}
+
+const floatLabel = (f: FloatItem) =>
+  `${f.kind === 'figure' ? '図' : '表'} ${f.number ?? '（番号なし）'}${f.env.endsWith('*') ? '（2 段幅）' : ''}`;
+
+/** 図表の一覧を作り直す（縮小画像はまだ無い） */
+function refreshFloats() {
+  floats = files && mainSelect.value ? listFloats(files, mainSelect.value) : [];
+  selectedFloat = undefined;
+  thumbsFor = undefined;
+  floatList.replaceChildren(
+    ...floats.map((f) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'float-item';
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', 'false');
+      item.dataset.index = String(f.index);
+      const thumb = Object.assign(document.createElement('div'), { className: 'thumb pending' });
+      item.append(thumb, Object.assign(document.createElement('strong'), { textContent: floatLabel(f) }), Object.assign(document.createElement('small'), { textContent: f.caption || '（キャプションなし）' }));
+      item.title = f.caption;
+      item.addEventListener('click', () => {
+        selectedFloat = f.index;
+        for (const el of floatList.children) el.setAttribute('aria-selected', String(el === item));
+        updateButtons();
+      });
+      return item;
+    }),
+  );
+  floatStatus.textContent = !files ? 'zip を選ぶと、論文の図表が並びます' : floats.length ? `${floats.length} 個の図表があります。マグにするものを選んでください` : '図表（figure・table）が見つかりません';
+  makeThumbs();
+}
+
+/** 縮小画像：すべての図表を 1 回で組み、それぞれを切り出して一覧に入れる。図表を選ぶ画面を開いたときだけ */
+async function makeThumbs() {
+  const key = `${filesKey}:${mainSelect.value}`;
+  if (mode !== 'figure' || !engineReady || !files || !floats.length || thumbsFor === key) return;
+  thumbsFor = key;
+  const base = floatStatus.textContent;
+  floatStatus.textContent = `${base}（縮小画像を作っています…）`;
+  try {
+    const t = await buildFloatThumbs(engine, files, mainSelect.value, readMug(), floats.map((f) => f.index), adapterSelect.value || undefined);
+    if (thumbsFor !== key) return; // 途中で zip などが変わった
+    if (!t.pdf || !t.items.length) {
+      floatStatus.textContent = `${base}（縮小画像は作れませんでした。選んで組版はできます）`;
+      return;
+    }
+    const { renderCrops } = await import('./raster');
+    const canvases = await renderCrops(t.pdf, t.items.map((i) => ({ key: i.index, page: i.page, crop: i.crop })), 104);
+    if (thumbsFor !== key) return;
+    for (const el of floatList.querySelectorAll<HTMLElement>('.float-item')) {
+      const c = canvases.get(Number(el.dataset.index));
+      const thumb = el.querySelector('.thumb')!;
+      if (c) {
+        thumb.classList.remove('pending');
+        thumb.replaceChildren(c);
+      }
+    }
+    floatStatus.textContent = base;
+  } catch (e) {
+    console.error(e);
+    if (thumbsFor === key) floatStatus.textContent = `${base}（縮小画像は作れませんでした）`;
+  } finally {
+    if (readyText) engineStatus.textContent = readyText;
+  }
+}
 bodyPtInput.addEventListener('input', () => {
   // 前回の組版結果の文字サイズは当てはまらなくなる
   lastSizes = undefined;
@@ -213,7 +312,11 @@ async function run() {
   const adapterId = adapterSelect.value || undefined;
   try {
     say('組版中…');
-    await show(await buildCover(engine, files, mainSelect.value, mug, adapterId));
+    const r =
+      mode === 'figure' && selectedFloat !== undefined
+        ? await buildFloat(engine, files, mainSelect.value, mug, selectedFloat, adapterId)
+        : await buildCover(engine, files, mainSelect.value, mug, adapterId);
+    await show(r);
   } catch (e) {
     say(e instanceof PatchError ? `パッチできません：${e.message}` : `エラー：${(e as Error).message}`, 'error');
     console.error(e);
@@ -268,6 +371,9 @@ async function show(r: BuildResult) {
   previewEmpty.hidden = true;
   $<HTMLAnchorElement>('dl-mug').href = mugUrl;
   $<HTMLAnchorElement>('dl-cover').href = blobUrl(compile.pdf, 'application/pdf');
+  const coverName = mode === 'figure' ? 'figure.pdf' : 'cover.pdf';
+  $<HTMLAnchorElement>('dl-cover').download = coverName;
+  $<HTMLAnchorElement>('dl-cover').textContent = coverName;
   $<HTMLAnchorElement>('dl-mug').hidden = false;
   $<HTMLAnchorElement>('dl-cover').hidden = false;
   downloads.hidden = false;
@@ -275,3 +381,4 @@ async function show(r: BuildResult) {
 
 updateFontHint();
 updateDiagram();
+refreshFloats();

@@ -25,7 +25,7 @@
     <main class="container layout">
       <div class="steps">
         <article class="step">
-          <header><span class="num">1</span>論文を選ぶ</header>
+          <header><span class="num"></span>論文を選ぶ</header>
           <label class="dropzone" id="dropzone" for="zip">
             <input id="zip" type="file" accept=".zip,application/zip" />
             <strong id="zip-name">LaTeX プロジェクトの zip</strong>
@@ -42,7 +42,21 @@
         </article>
 
         <article class="step">
-          <header><span class="num">2</span>仕上がり</header>
+          <header><span class="num"></span>作るもの</header>
+          <div class="mode-switch" role="radiogroup" aria-label="作るもの">
+            <label><input type="radio" name="mode" value="cover" checked /><span>表紙</span><small>タイトル・著者・Abstract</small></label>
+            <label><input type="radio" name="mode" value="figure" /><span>図表</span><small>論文の図か表を 1 つ</small></label>
+          </div>
+        </article>
+
+        <article class="step" id="float-step" hidden>
+          <header><span class="num"></span>図表を選ぶ</header>
+          <p id="float-status" class="hint float-status"></p>
+          <div id="float-list" class="float-list" role="listbox" aria-label="図表"></div>
+        </article>
+
+        <article class="step">
+          <header><span class="num"></span>仕上がり</header>
           <svg id="dims-diagram" class="dims-diagram" role="img" aria-label="幅・高さ・余白・塗り足しの位置"></svg>
           <fieldset class="dims">
             <legend>マグの印刷範囲 (mm)</legend>
@@ -56,7 +70,7 @@
             <input id="bodyPt" type="range" min="3.5" max="9" step="0.5" />
           </label>
           <p id="font-size" class="hint"></p>
-          <fieldset>
+          <fieldset id="cover-options">
             <label><input id="includeIntro" type="checkbox" role="switch" />余白にイントロの冒頭を入れる</label>
             <label><input id="includeHeaderFooter" type="checkbox" role="switch" />ヘッダー・フッターを含める</label>
           </fieldset>

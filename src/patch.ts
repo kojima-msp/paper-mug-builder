@@ -2,6 +2,7 @@
 import { bstSubstitutes, pickStyle, type StyleAdapter } from './styles';
 import bibliographyTex from './styles/common/bibliography.tex?raw';
 import endMarkerTex from './styles/common/end-marker.tex?raw';
+import floatTex from './styles/common/float.tex?raw';
 import fontFallbackTex from './styles/common/font-fallback.tex?raw';
 import introMarkerTex from './styles/common/intro-marker.tex?raw';
 import markersTex from './styles/common/markers.tex?raw';
@@ -9,6 +10,7 @@ import originalHeightTex from './styles/common/original-height.tex?raw';
 import originalTextwidthTex from './styles/common/original-textwidth.tex?raw';
 import reflowGeometryTex from './styles/common/reflow-geometry.tex?raw';
 import { fill } from './styles/template';
+import { findFloats } from './floats';
 import { availableHeight, availableWidth, paperGeometry, type MugOptions } from './mug';
 import { basename, dirname, flatten, joinPath } from './project';
 import { preambleWithoutPackages, stubPackages } from './stubs';
@@ -67,6 +69,11 @@ export interface PatchOptions {
   width?: 'body' | 'original';
   /** original / full のときの本文の高さ：fixedSp (sp) + ratio × \textwidth。未指定なら印刷範囲の縦横比から決める */
   fullHeight?: { fixedSp: number; ratio: number };
+  /**
+   * 表紙ではなく図表を組む（src/floats.ts の番号）。それぞれを本文幅の箱として 1 ページずつ組む。
+   * 1 つならマグ用、複数なら縮小画像用
+   */
+  floats?: number[];
 }
 
 export interface PatchResult {
@@ -76,7 +83,7 @@ export interface PatchResult {
   options: string[];
   /** 本文の文字サイズ (pt) */
   baseFontSize: number;
-  cutReason: 'maketitle' | 'abstract' | 'keywords' | 'section';
+  cutReason: 'maketitle' | 'abstract' | 'keywords' | 'section' | 'float';
   /** Abstract をタイトルの全幅領域に移したか */
   movedAbstract: boolean;
   /** イントロを流し込んだか */
@@ -168,104 +175,127 @@ export function patchSource(src: string, opts: PatchOptions): PatchResult {
   const adapter = pickStyle(dc.cls, dc.options, opts.adapterId);
   warnings.push(...(adapter.check?.(masked) ?? []));
 
-  // (a) 打ち切り位置
-  const titleStart = findCommandStart(masked, 'maketitle', bodyStart);
-  const titleEnd = findCommandEnd(masked, 'maketitle', bodyStart);
-  const absBegin = findBegin(masked, 'abstract', bodyStart);
-  const absEnd = findEndOf(masked, 'abstract', bodyStart);
-  // どちらも無い（タイトルページを \\begin{center} などで手で組んでいる）なら、最初の \\section の手前までを表紙とする
-  const firstSection = titleEnd < 0 && absEnd < 0 ? findCommandStart(masked, 'section', bodyStart) : -1;
-  if (titleEnd < 0 && absEnd < 0 && (firstSection < 0 || firstSection >= endDoc)) {
-    throw new PatchError('\\maketitle も \\end{abstract} も \\section も見つかりません');
-  }
-  if (firstSection >= 0) warnings.push('\\maketitle も abstract 環境も無いため、最初の \\section の手前までを表紙として切り出しました');
-  else if (absEnd < 0) warnings.push('\\end{abstract} が見つからないため、\\maketitle の直後で切ります');
-  let cut = firstSection >= 0 ? firstSection : Math.max(titleEnd, absEnd);
-  let cutReason: PatchResult['cutReason'] = firstSection >= 0 ? 'section' : cut === absEnd ? 'abstract' : 'maketitle';
-
-  // Abstract の直後の Keywords。書き方は 3 通りある
-  // - 環境：\begin{IEEEkeywords}…\end{IEEEkeywords}、\begin{keywords}…（スタイルの keywordEnvs）
-  // - コマンド：\keywords{…}（AASTeX、REVTeX など）
-  // - 段落：\noindent\textbf{Keywords:} …（article で手書きするもの）。次の空行か \section まで
-  const kw = (() => {
-    const rest = masked.slice(cut);
-    const at = cut + rest.length - rest.trimStart().length;
-    for (const env of adapter.keywordEnvs) {
-      if (findBegin(masked, env, at) === at) {
-        const end = findEndOf(masked, env, at);
-        if (end > 0) return { begin: at, end };
-      }
-    }
-    const cmd = /^\\(keywords|keyword|keyterms)\s*\{/.exec(masked.slice(at));
-    if (cmd) {
-      const end = matchingBrace(masked, at + cmd[0].length - 1);
-      if (end > 0) return { begin: at, end: end + 1 };
-    }
-    if (KEYWORD_PARAGRAPH_RE.test(masked.slice(at, at + 200))) {
-      const m = /\n[ \t]*\n|\\(section|subsection|begin)\b/.exec(masked.slice(at));
-      return { begin: at, end: m ? at + m.index : at };
-    }
-    return undefined;
-  })();
-  // Keywords は常に含める
-  if (kw) {
-    cut = kw.end;
-    cutReason = 'keywords';
-  }
-  const frontTail = cut;
-
-  // (b) 表紙部分の本文
   const options = mug.mode === 'reflow' ? adapter.reflow.editOptions(dc.options) : dc.options;
+  let titleStart = -1;
+  let cutReason: PatchResult['cutReason'];
   let front: string;
   let movedAbstract = false;
-  const absAfterTitle = titleStart >= 0 && absBegin > titleEnd;
-  const titleCode =
-    mug.mode === 'original' && absAfterTitle ? adapter.original.titleAbstract?.(src.slice(absBegin, cut), options) ?? null : null;
-  if (titleCode !== null) {
-    movedAbstract = true;
-    front = src.slice(bodyStart, titleStart) + titleCode + src.slice(titleStart, absBegin);
-  } else {
-    front = src.slice(bodyStart, cut);
-  }
-
-
-  // (c) イントロの冒頭（original / full のみ）。次の \section、付録、参考文献の手前まで
   let intro = '';
   let removedFloats: string[] = [];
-  const includedIntro = phase === 'full' && mug.includeIntro;
-  if (includedIntro) {
-    const s1 = findCommandStart(masked, 'section', frontTail);
-    const stops = [
-      s1 >= 0 ? findCommandStart(masked, 'section', s1 + 1) : -1,
-      findCommandStart(masked, 'appendix', frontTail),
-      findCommandStart(masked, 'bibliography', frontTail),
-      findBegin(masked, 'thebibliography', frontTail),
-      endDoc,
-    ].filter((i) => i >= 0);
-    const introEnd = Math.min(...stops);
-    const r = removeEnvironments(src.slice(frontTail, introEnd), FLOAT_ENVS);
-    // イントロの最初の段落（節見出しを含む）が組まれたページをログに出す。1 ページ目に入らなかったことを見分けるため
-    intro = `\n${fill(introMarkerTex)}${r.source}`;
-    removedFloats = r.removed;
-  }
-
-  // (d) 参考文献：流し込んだ部分の \cite に番号を出すため、文献リストを捨て箱の中で読み、2 回組む
+  let includedIntro = false;
   let bibCode = '';
   let citeSource: PatchResult['citeSource'];
-  if (includedIntro && /\\cite[a-zA-Z]*\*?\s*[[{]/.test(maskComments(intro))) {
-    const r = bibliographyCode(src, masked, bodyStart, endDoc, opts);
-    if ('warning' in r) warnings.push(r.warning);
-    else {
-      bibCode = `${fill(bibliographyTex, { code: r.code })}\n${adapter.original.afterBibliography?.() ?? ''}\n`;
-      citeSource = r.source;
-      if (r.note) warnings.push(r.note);
+  if (opts.floats) {
+    // 図表：選んだものを、1 ページに 1 つずつ本文幅の箱として組む
+    const all = findFloats(src);
+    const chosen = opts.floats.map((i) => all[i]);
+    if (!chosen.length || chosen.some((f) => !f)) throw new PatchError('選んだ図表が見つかりません');
+    cutReason = 'float';
+    front = [
+      '\\mugonecolumn',
+      ...chosen.map((f, i) =>
+        [
+          i ? '\\clearpage' : '',
+          `\\begin{mugfloat}{${f.kind}}{${(f.number ?? 1) - 1}}`,
+          f.body.trim(),
+          '\\end{mugfloat}',
+          opts.floats!.length > 1 ? `\\mugfigmark{${f.index}}` : '',
+        ].filter(Boolean).join('\n'),
+      ),
+    ].join('\n');
+  } else {
+    // (a) 打ち切り位置
+    titleStart = findCommandStart(masked, 'maketitle', bodyStart);
+    const titleEnd = findCommandEnd(masked, 'maketitle', bodyStart);
+    const absBegin = findBegin(masked, 'abstract', bodyStart);
+    const absEnd = findEndOf(masked, 'abstract', bodyStart);
+    // どちらも無い（タイトルページを \\begin{center} などで手で組んでいる）なら、最初の \\section の手前までを表紙とする
+    const firstSection = titleEnd < 0 && absEnd < 0 ? findCommandStart(masked, 'section', bodyStart) : -1;
+    if (titleEnd < 0 && absEnd < 0 && (firstSection < 0 || firstSection >= endDoc)) {
+      throw new PatchError('\\maketitle も \\end{abstract} も \\section も見つかりません');
+    }
+    if (firstSection >= 0) warnings.push('\\maketitle も abstract 環境も無いため、最初の \\section の手前までを表紙として切り出しました');
+    else if (absEnd < 0) warnings.push('\\end{abstract} が見つからないため、\\maketitle の直後で切ります');
+    let cut = firstSection >= 0 ? firstSection : Math.max(titleEnd, absEnd);
+    cutReason = firstSection >= 0 ? 'section' : cut === absEnd ? 'abstract' : 'maketitle';
+
+    // Abstract の直後の Keywords。書き方は 3 通りある
+    // - 環境：\begin{IEEEkeywords}…\end{IEEEkeywords}、\begin{keywords}…（スタイルの keywordEnvs）
+    // - コマンド：\keywords{…}（AASTeX、REVTeX など）
+    // - 段落：\noindent\textbf{Keywords:} …（article で手書きするもの）。次の空行か \section まで
+    const kw = (() => {
+      const rest = masked.slice(cut);
+      const at = cut + rest.length - rest.trimStart().length;
+      for (const env of adapter.keywordEnvs) {
+        if (findBegin(masked, env, at) === at) {
+          const end = findEndOf(masked, env, at);
+          if (end > 0) return { begin: at, end };
+        }
+      }
+      const cmd = /^\\(keywords|keyword|keyterms)\s*\{/.exec(masked.slice(at));
+      if (cmd) {
+        const end = matchingBrace(masked, at + cmd[0].length - 1);
+        if (end > 0) return { begin: at, end: end + 1 };
+      }
+      if (KEYWORD_PARAGRAPH_RE.test(masked.slice(at, at + 200))) {
+        const m = /\n[ \t]*\n|\\(section|subsection|begin)\b/.exec(masked.slice(at));
+        return { begin: at, end: m ? at + m.index : at };
+      }
+      return undefined;
+    })();
+    // Keywords は常に含める
+    if (kw) {
+      cut = kw.end;
+      cutReason = 'keywords';
+    }
+    const frontTail = cut;
+
+    // (b) 表紙部分の本文
+    const absAfterTitle = titleStart >= 0 && absBegin > titleEnd;
+    const titleCode =
+      mug.mode === 'original' && absAfterTitle ? adapter.original.titleAbstract?.(src.slice(absBegin, cut), options) ?? null : null;
+    if (titleCode !== null) {
+      movedAbstract = true;
+      front = src.slice(bodyStart, titleStart) + titleCode + src.slice(titleStart, absBegin);
+    } else {
+      front = src.slice(bodyStart, cut);
+    }
+
+
+    // (c) イントロの冒頭（original / full のみ）。次の \section、付録、参考文献の手前まで
+    includedIntro = phase === 'full' && mug.includeIntro;
+    if (includedIntro) {
+      const s1 = findCommandStart(masked, 'section', frontTail);
+      const stops = [
+        s1 >= 0 ? findCommandStart(masked, 'section', s1 + 1) : -1,
+        findCommandStart(masked, 'appendix', frontTail),
+        findCommandStart(masked, 'bibliography', frontTail),
+        findBegin(masked, 'thebibliography', frontTail),
+        endDoc,
+      ].filter((i) => i >= 0);
+      const introEnd = Math.min(...stops);
+      const r = removeEnvironments(src.slice(frontTail, introEnd), FLOAT_ENVS);
+      // イントロの最初の段落（節見出しを含む）が組まれたページをログに出す。1 ページ目に入らなかったことを見分けるため
+      intro = `\n${fill(introMarkerTex)}${r.source}`;
+      removedFloats = r.removed;
+    }
+
+    // (d) 参考文献：流し込んだ部分の \cite に番号を出すため、文献リストを捨て箱の中で読み、2 回組む
+    if (includedIntro && /\\cite[a-zA-Z]*\*?\s*[[{]/.test(maskComments(intro))) {
+      const r = bibliographyCode(src, masked, bodyStart, endDoc, opts);
+      if ('warning' in r) warnings.push(r.warning);
+      else {
+        bibCode = `${fill(bibliographyTex, { code: r.code })}\n${adapter.original.afterBibliography?.() ?? ''}\n`;
+        citeSource = r.source;
+        if (r.note) warnings.push(r.note);
+      }
     }
   }
   const bibtex = citeSource !== undefined;
 
   // \maketitle を書かないクラス（REVTeX 系は最初の \section でタイトルを出す）には、表紙部分の後に補う。
   // イントロを流し込むときは、その \section がタイトルを出すので補わない（2 回組むとクラスがエラーにする）
-  if (titleStart < 0 && adapter.original.ensureMaketitle && !includedIntro) front += '\n\\maketitle\n';
+  if (!opts.floats && titleStart < 0 && adapter.original.ensureMaketitle && !includedIntro) front += '\n\\maketitle\n';
 
   // (e) \thanks の脚注はマグには不要なので、中身ごと取り除く（\title や \author はプリアンブルにあることも多い）
   const thanksBody = removeCommandWithArg(front + intro, 'thanks');
@@ -295,6 +325,7 @@ export function patchSource(src: string, opts: PatchOptions): PatchResult {
     '% ===== paper-mug overrides =====',
     ...(mug.mode === 'reflow' ? reflowLayout(mug) : originalLayout(mug, phase, opts, adapter)),
     fill(markersTex),
+    opts.floats ? fill(floatTex) : undefined,
     mug.mode === 'reflow' ? adapter.reflow.preamble?.() : adapter.original.preamble?.(),
     fill(fontFallbackTex),
     ...(opts.hintPackages?.length ? ['% [paper-mug] クラスが読み込むパッケージを BusyTeX に知らせる', ...opts.hintPackages.map((p) => `\\usepackage{${p}}`)] : []),
@@ -502,6 +533,8 @@ export interface CompileLog {
   titleEnds?: number[];
   /** タイトルを組み始める高さ（sp） */
   titleTops?: number[];
+  /** 図表ごとの終端（縮小画像用）：図表の番号、ページ、高さ（sp） */
+  figMarks?: { index: number; page: number; y: number }[];
   /** 1 ページ目のヘッダー・フッターが空か */
   headEmpty?: boolean;
   footEmpty?: boolean;
@@ -535,6 +568,7 @@ export function parseCompileLog(log: string): CompileLog {
     introPage: num(INTRO_MARKER),
     titleEnds: [...last.matchAll(new RegExp(`${TITLE_END_MARKER}=(-?\\d+)`, 'g'))].map((m) => Number(m[1])),
     titleTops: [...last.matchAll(/MUG-TITLETOP=(-?\d+)/g)].map((m) => Number(m[1])),
+    figMarks: [...last.matchAll(/MUG-FIG=(\d+),(\d+),(-?\d+)/g)].map((m) => ({ index: Number(m[1]), page: Number(m[2]), y: Number(m[3]) })),
     headEmpty: /MUG-HEAD=(empty|full)/.exec(last)?.[1] === 'empty' ? true : /MUG-HEAD=full/.test(last) ? false : undefined,
     footEmpty: /MUG-FOOT=(empty|full)/.exec(last)?.[1] === 'empty' ? true : /MUG-FOOT=full/.test(last) ? false : undefined,
     layout: lay

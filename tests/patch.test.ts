@@ -17,6 +17,7 @@ import { detectMain, flatten, joinPath } from '../src/project';
 import { maskComments, removeCommandWithArg, removeEnvironments, unclosedEnvironments } from '../src/texparse';
 import { readZip, type ProjectFiles } from '../src/zip';
 import { pickStyle, styles } from '../src/styles';
+import { findFloats } from '../src/floats';
 import { fill } from '../src/styles/template';
 import endMarkerTex from '../src/styles/common/end-marker.tex?raw';
 import introMarkerTex from '../src/styles/common/intro-marker.tex?raw';
@@ -348,6 +349,40 @@ describe('警告とパッケージの無効化', () => {
   });
 });
 
+describe('図表', () => {
+  const src = [
+    '\\documentclass{article}',
+    '\\begin{document}',
+    '\\begin{figure}[t]\\centering\\includegraphics{a}\\caption{First $x$ \\cite{k}.}\\label{f1}\\end{figure}',
+    '% \\begin{figure}\\caption{commented}\\end{figure}',
+    '\\begin{table*}\\caption{T}\\begin{tabular}{c}1\\end{tabular}\\end{table*}',
+    '\\begin{figure}\\includegraphics{b}\\end{figure}',
+    '\\begin{figure}\\caption{Second}\\end{figure}',
+    '\\end{document}',
+  ].join('\n');
+  it('findFloats：出現順に、元の論文と同じ番号とキャプションの先頭を拾う（コメントとキャプションの無いものは番号なし）', () => {
+    const fs = findFloats(src);
+    expect(fs.map((f) => [f.env, f.number, f.caption])).toEqual([
+      ['figure', 1, 'First x […].'],
+      ['table*', 1, 'T'],
+      ['figure', undefined, ''],
+      ['figure', 2, 'Second'],
+    ]);
+    expect(fs[0].body).not.toContain('[t]');
+  });
+  it('選んだ図表を、番号を合わせた箱として組む', () => {
+    const r = patchSource(src, { mug: mug(), phase: 'front', floats: [3] });
+    expect(r.cutReason).toBe('float');
+    expect(r.source).toContain('\\begin{mugfloat}{figure}{1}');
+    expect(r.source).toContain('\\caption{Second}');
+    expect(r.source).not.toContain('First');
+    expect(r.source).not.toContain('\\mugfigmark{');
+    const thumbs = patchSource(src, { mug: mug(), phase: 'front', floats: [0, 1] });
+    expect(thumbs.source).toContain('\\mugfigmark{1}');
+    expect(thumbs.source).toContain('\\clearpage');
+  });
+});
+
 describe('IEEEoj（IEEE Open Journal）', () => {
   const src = [
     '\\documentclass{IEEEoj}',
@@ -452,6 +487,6 @@ describe('parseCompileLog', () => {
     expect(parseCompileLog(busy).introPage).toBe(1);
     expect(parseCompileLog(busy).baseSize).toBe(10);
     expect(parseCompileLog('$ a\nMUG-TITLEEND=500\nMUG-TITLEEND=-3\n').titleEnds).toEqual([500, -3]);
-    expect(parseCompileLog('nothing')).toEqual({ pos: undefined, layout: undefined, baseSize: undefined, titleSize: undefined, introPage: undefined, titleEnds: [], titleTops: [], headEmpty: undefined, footEmpty: undefined });
+    expect(parseCompileLog('nothing')).toEqual({ pos: undefined, layout: undefined, baseSize: undefined, titleSize: undefined, introPage: undefined, titleEnds: [], titleTops: [], figMarks: [], headEmpty: undefined, footEmpty: undefined });
   });
 });

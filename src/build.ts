@@ -1,7 +1,7 @@
 // パッチ → コンパイル → 計測 → 部品の切り出し の一連の流れと、自動フィット。
 import type { CompileResult, TexEngine } from './engine';
-import { PAD_BP, pageGeometry, partHeight, summarize, textCrop, widthScale, type CoverMeasure, type PageGeometry, type Part } from './impose';
-import { availableHeight, availableWidth, K_RANGE, mmToBp, nextK, type MugOptions } from './mug';
+import { PAD_BP, pageGeometry, partHeight, summarize, textCrop, widthScale, type CoverMeasure, type CropBox, type PageGeometry, type Part } from './impose';
+import { availableHeight, availableWidth, K_RANGE, mmToBp, nextK, spToBp, type MugOptions } from './mug';
 import {
   culpritPackage,
   missingFiles,
@@ -107,7 +107,7 @@ interface Compiled extends Missing {
   notes: string[];
 }
 
-type CompileOpts = Pick<PatchOptions, 'adapterId' | 'width' | 'fullHeight'>;
+type CompileOpts = Pick<PatchOptions, 'adapterId' | 'width' | 'fullHeight' | 'floats'>;
 
 async function compileOnce(
   engine: TexEngine,
@@ -212,6 +212,64 @@ const failed = (mug: MugOptions, c: Compiled): BuildResult => ({
 const fitScale = (crop: Part['crop'], mug: MugOptions, height = availableHeight(mug)) =>
   Math.min(widthScale(crop, mug), mmToBp(height) / (crop.top - crop.bottom));
 const isShrunk = (p: Part, mug: MugOptions) => p.scale < widthScale(p.crop, mug) * 0.995;
+
+/**
+ * 図表を 1 つ、表紙と同じ本文幅（マグ上の本文が bodyPt になる幅）で組む。キャプションは常に含める。
+ * 印刷範囲の高さを超えるときは縮める
+ */
+export async function buildFloat(
+  engine: TexEngine,
+  files: ProjectFiles,
+  mainPath: string,
+  mug: MugOptions,
+  floatIndex: number,
+  adapterId?: string,
+): Promise<BuildResult> {
+  const c = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId, width: 'body', floats: [floatIndex] });
+  if (!c.geom) return failed(mug, c);
+  const crop = textCrop(c.geom, c.geom.textTop, c.geom.contentBottom);
+  const part: Part = { pdf: c.compile.pdf!, crop, scale: fitScale(crop, mug), place: 'top' };
+  const shrunk = isShrunk(part, mug);
+  const notes = [...c.notes];
+  if (shrunk) notes.push('図表が印刷範囲の高さを超えるため、縮小しました（文字も小さくなります）');
+  return {
+    mug,
+    patch: c.patch,
+    compile: c.compile,
+    parts: [part],
+    measure: summarize([part], mug, {
+      pageCount: c.geom.pageCount,
+      scale: part.scale,
+      shrunk,
+      fits: true,
+      bodyPt: c.log.baseSize !== undefined ? c.log.baseSize * part.scale : undefined,
+    }),
+    notes,
+    dropped: c.dropped,
+  };
+}
+
+/** 縮小画像の元：すべての図表を 1 ページに 1 つずつ組んだ PDF と、それぞれの切り出し範囲 */
+export interface FloatThumbs {
+  pdf?: Uint8Array;
+  items: { index: number; page: number; crop: CropBox }[];
+  log: string;
+}
+
+export async function buildFloatThumbs(
+  engine: TexEngine,
+  files: ProjectFiles,
+  mainPath: string,
+  mug: MugOptions,
+  indices: number[],
+  adapterId?: string,
+): Promise<FloatThumbs> {
+  const c = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId, width: 'body', floats: indices });
+  if (!c.geom || !c.compile.pdf) return { items: [], log: c.compile.log };
+  const g = c.geom;
+  const items = (c.log.figMarks ?? []).map((m) => ({ index: m.index, page: m.page - 1, crop: textCrop(g, g.textTop, spToBp(m.y)) }));
+  return { pdf: c.compile.pdf, items, log: c.compile.log };
+}
 
 /** モードに応じて表紙を組む。 */
 export async function buildCover(

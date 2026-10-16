@@ -82,7 +82,8 @@ export const PACKAGE_RULES: PackageRule[] = [
     define: gobble('\\setlist', '[2][]') + gobble('\\setlistdepth', '[1]') + gobble('\\setenumerate', '[2][]') + gobble('\\setitemize', '[2][]') + gobble('\\setdescription', '[2][]'),
   },
   { pkg: 'comment', when: 'unused', used: /\\begin\s*\{comment\}|\\(includecomment|excludecomment|specialcomment)\b/ },
-  { pkg: 'orcidlink', when: 'unused', used: /\\orcidlink\b/ },
+  // orcidlink は hyperref を読み込むので、外すときは代わりに読み込む（\hypersetup だけを書く論文があるため）
+  { pkg: 'orcidlink', when: 'unused', used: /\\orcidlink\b/, require: ['hyperref'] },
 ];
 
 const USEPACKAGE_RE = /\\(usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{([^}]*)\}/g;
