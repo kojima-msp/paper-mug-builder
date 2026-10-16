@@ -14,6 +14,7 @@ import { buildCover } from '../src/build';
 import type { TexEngine } from '../src/engine';
 import { imposeParts } from '../src/impose';
 import { DEFAULT_MUG } from '../src/mug';
+import { setTexmfFetcher } from '../src/texmf';
 import type { ProjectFiles } from '../src/zip';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -171,6 +172,8 @@ async function main() {
     fs.existsSync(resultsPath) ? Object.entries(JSON.parse(fs.readFileSync(resultsPath, 'utf8'))) : [],
   );
 
+  // 追加のパッケージの一式（pgf/TikZ など）は public/texmf から読む
+  setTexmfFetcher(async (p) => new Uint8Array(fs.readFileSync(path.join(ROOT, 'public/texmf', p))));
   const require = createRequire(import.meta.url);
   const engine: TexEngine = require('./node-engine.cjs')(DIST);
   await engine.init();

@@ -33,6 +33,13 @@ jobs:
           path: public/busytex
           key: busytex-${{ hashFiles('scripts/fetch-busytex.sh') }}
       - run: sh scripts/fetch-busytex.sh
+      # BusyTeX に無いパッケージの一式（pgf/TikZ など、TeX Live 2023 版）。組版で足りないときにブラウザが読み込む
+      - name: Cache texmf bundles
+        uses: actions/cache@v4
+        with:
+          path: public/texmf
+          key: texmf-${{ hashFiles('scripts/fetch-texmf.sh', 'scripts/pack-texmf.mjs') }}
+      - run: sh scripts/fetch-texmf.sh
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -284,15 +284,13 @@ describe('警告とパッケージの無効化', () => {
   });
   const pre = (usepkgs: string, body = '', extraPreamble = '') =>
     `\\documentclass{article}\n${usepkgs}\n${extraPreamble}\n\\begin{document}\\title{T}\\maketitle\\begin{abstract}A ${body}\\end{abstract}\\end{document}`;
-  it('BusyTeX に無い tikz・soul は空定義に差し替え、常に外すもの（stfloats）と指定したものも外す', () => {
+  it('BusyTeX に無い soul は空定義に差し替え、常に外すもの（stfloats）と指定したものも外す。tikz は追加の一式から読むので残す', () => {
     const r = patchSource(pre('\\usepackage{tikz,soul,stfloats,amsmath}\n\\usetikzlibrary{arrows}\n\\usepackage[x]{foo}'), { mug: mug(), dropPackages: ['foo'] });
-    expect(r.removedPackages).toEqual(['tikz', 'soul', 'stfloats', 'foo']);
-    expect(r.keptPackages).toEqual(['amsmath']);
-    expect(r.source).toContain('\\usepackage{amsmath}');
+    expect(r.removedPackages).toEqual(['soul', 'stfloats', 'foo']);
+    expect(r.keptPackages).toEqual(['tikz', 'amsmath']);
+    expect(r.source).toContain('\\usepackage{tikz,amsmath}');
     expect(r.source).toContain('% [paper-mug] removed foo: \\usepackage[x]{foo}');
-    // tikz が読み込んでいた xcolor を代わりに読み込み、設定コマンドは後続より前で空にする
-    expect(r.source).toContain('\\usepackage{xcolor}');
-    expect(r.source.indexOf('\\providecommand\\usetikzlibrary')).toBeLessThan(r.source.indexOf('\\usetikzlibrary{arrows}'));
+    expect(r.source).not.toContain('\\providecommand\\usetikzlibrary');
     expect(r.source).toContain('\\providecommand\\ul[1]{#1}');
   });
   it('表紙とイントロで使われていない multirow・cleveref は外し、使われていれば残す', () => {
@@ -348,6 +346,25 @@ describe('IEEEoj（IEEE Open Journal）', () => {
   });
   it('タイトル部分に書かれた Index Terms はそのまま含める', () => {
     expect(body(patchSource(src, { mug: mug() }).source)).toContain('\\begin{IEEEkeywords}k1, k2\\end{IEEEkeywords}');
+  });
+});
+
+describe('EPS の画像', () => {
+  const src = '\\documentclass{article}\n\\usepackage{graphicx}\n\\begin{document}\n\\title{\\includegraphics[width=2cm]{figs/logo}\\\\T}\\author{A}\\maketitle\n\\begin{abstract}\\includegraphics{b.eps} \\includegraphics{c} \\includegraphics{d.png}\\end{abstract}\n\\end{document}';
+  const files = new Set(['figs/logo.eps', 'b.eps', 'c.eps', 'c.pdf', 'd.png']);
+  const r = patchSource(src, { mug: mug(), phase: 'front', hasFile: (p) => files.has(p) });
+  it('EPS しか無い画像は、同じ大きさの枠（-mug-eps.pdf）に差し替え、警告する', () => {
+    expect(body(r.source)).toContain('\\includegraphics[width=2cm]{figs/logo-mug-eps}');
+    expect(body(r.source)).toContain('\\includegraphics{b-mug-eps}');
+    expect(r.epsImages).toEqual([
+      { eps: 'figs/logo.eps', placeholder: 'figs/logo-mug-eps.pdf' },
+      { eps: 'b.eps', placeholder: 'b-mug-eps.pdf' },
+    ]);
+    expect(r.warnings.filter((w) => w.includes('EPS'))).toHaveLength(2);
+  });
+  it('同じ名前の PDF があればそちらを読ませ、PNG などはそのまま', () => {
+    expect(body(r.source)).toContain('\\includegraphics{c}');
+    expect(body(r.source)).toContain('\\includegraphics{d.png}');
   });
 });
 

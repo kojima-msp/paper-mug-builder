@@ -2,7 +2,7 @@
   "revtex": {
     "id": "revtex",
     "originalOk": true,
-    "ms": 3218,
+    "ms": 3034,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -12,7 +12,7 @@
   "mnras": {
     "id": "mnras",
     "originalOk": true,
-    "ms": 3788,
+    "ms": 3945,
     "intro": false,
     "messages": [
       "本文 6pt では著者と Abstract が印刷範囲に収まらないため、5.4pt に下げて組みました",
@@ -25,7 +25,7 @@
   "achemso": {
     "id": "achemso",
     "originalOk": true,
-    "ms": 1605,
+    "ms": 1906,
     "intro": false,
     "messages": [
       "本文 6pt では著者と Abstract が印刷範囲に収まらないため、4.7pt に下げて組みました",
@@ -38,7 +38,7 @@
   "elsarticle": {
     "id": "elsarticle",
     "originalOk": true,
-    "ms": 5830,
+    "ms": 6434,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -48,7 +48,7 @@
   "amsart": {
     "id": "amsart",
     "originalOk": true,
-    "ms": 2860,
+    "ms": 2939,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -58,7 +58,7 @@
   "ieeetran": {
     "id": "ieeetran",
     "originalOk": true,
-    "ms": 1398,
+    "ms": 2076,
     "intro": true,
     "messages": [
       "IEEEtran.bst が無いため、番号の付け方が同じ ieeetr.bst で引用番号を解決しました"
@@ -70,7 +70,7 @@
   "aastex": {
     "id": "aastex",
     "originalOk": true,
-    "ms": 11177,
+    "ms": 11133,
     "intro": true,
     "messages": [
       "epsf、ulem は見つからない（または見つからないファイルを要求する）ため外して組みました"
@@ -82,7 +82,7 @@
   "casdc": {
     "id": "casdc",
     "originalOk": true,
-    "ms": 13071,
+    "ms": 13881,
     "intro": true,
     "messages": [],
     "ok": true,
@@ -92,7 +92,7 @@
   "article": {
     "id": "article",
     "originalOk": true,
-    "ms": 3646,
+    "ms": 3548,
     "intro": false,
     "messages": [
       "Abstract の下にイントロが入らなかったため、イントロ無しで出力します（本文の文字サイズを小さくすると入ります）"

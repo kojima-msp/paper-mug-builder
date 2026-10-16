@@ -46,32 +46,7 @@ export const PACKAGE_RULES: PackageRule[] = [
   },
   { pkg: 'svg', when: 'unavailable', define: gobble('\\svgpath', '[1]') + gobble('\\svgsetup', '[1]') + gobble('\\includesvg', '[2][]') },
   { pkg: 'shellesc', when: 'unavailable', define: gobble('\\ShellEscape', '[1]') },
-  // pgf 系はデータパッケージに無い。図は流し込み時に取り除くので、設定コマンドを空にし、残った図は捨てる
-  {
-    pkg: 'tikz',
-    when: 'unavailable',
-    require: ['xcolor'],
-    define: [
-      gobble('\\usetikzlibrary', '[1]'),
-      gobble('\\tikzset', '[1]'),
-      gobble('\\usepgflibrary', '[1]'),
-      gobble('\\pgfdeclarelayer', '[1]'),
-      gobble('\\pgfsetlayers', '[1]'),
-      gobble('\\tikzexternalize', '[1][]'),
-      gobble('\\pgfmathsetmacro', '[2]'),
-      // \tikz[...]{...} の形だけ受け付けて捨てる（クラスが飾り罫に使うことがある）
-      String.raw`\@ifundefined{tikz}{\NewDocumentCommand\tikz{o m}{}}{}`,
-      String.raw`\@ifundefined{tikzstyle}{\def\tikzstyle#1=[#2]{}}{}`,
-      gobbleEnv('tikzpicture', 'o '),
-    ].join(''),
-  },
-  { pkg: 'pgf', when: 'unavailable', require: ['xcolor'] },
-  {
-    pkg: 'pgfplots',
-    when: 'unavailable',
-    require: ['xcolor'],
-    define: gobble('\\pgfplotsset', '[1]') + gobble('\\usepgfplotslibrary', '[1]') + gobbleEnv('tikzpicture', 'o '),
-  },
+  // tikz・pgf・pgfplots は追加のパッケージの一式（src/texmf.ts）から読み込む。以下はそれに入っていない、pgf を使うパッケージ
   { pkg: 'tikz-cd', when: 'unavailable', define: gobbleEnv('tikzcd', 'o ') },
   { pkg: 'circuitikz', when: 'unavailable', define: gobble('\\ctikzset', '[1]') + gobbleEnv('circuitikz', 'o ') },
   { pkg: 'forest', when: 'unavailable', define: gobble('\\forestset', '[1]') + gobbleEnv('forest') },

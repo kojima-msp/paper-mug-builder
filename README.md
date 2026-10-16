@@ -7,6 +7,7 @@ LaTeX プロジェクトの zip から、タイトル・著者・Abstract だけ
 ```sh
 npm install
 npm run fetch-busytex   # BusyTeX（WASM 版 TeX Live 2023、約 170 MB）を public/busytex/ に取得
+npm run fetch-texmf     # BusyTeX に無いパッケージ（pgf/TikZ・pgfplots）を public/texmf/ に取得
 npm run dev             # http://localhost:5173/
 ```
 

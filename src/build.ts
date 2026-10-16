@@ -12,8 +12,10 @@ import {
   type PatchPhase,
   type ProjectPatch,
 } from './patch';
-import { basename, dirname } from './project';
+import { epsPlaceholder } from './eps';
+import { basename, dirname, joinPath } from './project';
 import { emptyShim, shimFiles } from './stubs';
+import { bundleFor, loadBundle } from './texmf';
 import type { ProjectFiles } from './zip';
 
 export interface BuildResult {
@@ -58,7 +60,7 @@ const SUPPORT_EXT = /\.(sty|cls|clo|cfg|def|fd|bst|bbx|cbx)$/i;
  * - BusyTeX に無い・使えないパッケージの代わり（シム）。プロジェクトに同名のファイルがあればそちらを使う
  * - 見つからなかったため外したパッケージの、中身の無い代わり（クラスが読み込む場合にも組版を通すため）
  */
-function supportFiles(files: ProjectFiles, mainPath: string, dropped: string[]): Record<string, string | Uint8Array> {
+function supportFiles(files: ProjectFiles, mainPath: string, dropped: string[], texmf: ProjectFiles[]): Record<string, string | Uint8Array> {
   const dir = dirname(mainPath);
   const at = (name: string) => (dir ? `${dir}/${name}` : name);
   const out: Record<string, string | Uint8Array> = {};
@@ -67,6 +69,8 @@ function supportFiles(files: ProjectFiles, mainPath: string, dropped: string[]):
     if (!files.has(dest) && !(dest in out)) out[dest] = c;
   };
   for (const [p, c] of files) if (SUPPORT_EXT.test(p) && dirname(p) !== dir) add(basename(p), c);
+  // BusyTeX に無いパッケージの一式（pgf/TikZ など）。読み込んだものだけ
+  for (const bundle of texmf) for (const [name, c] of bundle) add(name, c);
   for (const [name, c] of Object.entries(shimFiles())) add(name, c);
   for (const pkg of dropped) add(`${pkg}.sty`, emptyShim(pkg));
   return out;
@@ -78,6 +82,8 @@ interface Missing {
   dropped: string[];
   /** BusyTeX に知らせるために書き足したパッケージ */
   hints: string[];
+  /** 読み込んだ追加のパッケージの一式（src/texmf.ts） */
+  bundles: string[];
 }
 
 interface Compiled extends Missing {
@@ -98,32 +104,43 @@ async function compileOnce(
   mug: MugOptions,
   phase: PatchPhase,
   opts: CompileOpts,
-  missing: Missing = { dropped: [], hints: [] },
+  missing: Missing = { dropped: [], hints: [], bundles: [] },
 ): Promise<Compiled> {
-  let { dropped, hints } = missing;
+  let { dropped, hints, bundles } = missing;
   for (let i = 0; ; i++) {
-    const support = supportFiles(files, mainPath, dropped);
+    const support = supportFiles(files, mainPath, dropped, await Promise.all(bundles.map(loadBundle)));
     const patch = patchProject(files, mainPath, { mug, phase, ...opts, dropPackages: dropped, hintPackages: hints });
+    // EPS の画像の代わりの枠（パッチが \includegraphics の名前を書き換えている）
+    const dir = dirname(mainPath);
+    for (const e of patch.epsImages) {
+      support[joinPath(dir, e.placeholder)] = await epsPlaceholder(e.eps, files.get(joinPath(dir, e.eps)));
+    }
     const compile = await engine.compile(files, patch.outPath, { ...support, [patch.outPath]: patch.source }, { bibtex: patch.bibtex });
     const log = parseCompileLog(compile.log);
     const notes = dropped.length ? [`${dropped.join('、')} は見つからない（または見つからないファイルを要求する）ため外して組みました`] : [];
     if (compile.ok && compile.pdf) {
-      return { patch, compile, log, geom: await pageGeometry(compile.pdf, log, phase === 'full'), notes, dropped, hints };
+      return { patch, compile, log, geom: await pageGeometry(compile.pdf, log, phase === 'full'), notes, dropped, hints, bundles };
     }
     // 見つからないパッケージへの対処。表紙に不要なことが多いので、組めることを優先する
+    // - 追加のパッケージの一式（pgf/TikZ など）に含まれていれば、それを読み込む
     // - 自分で \usepackage したもの（またはそれを要求したもの）は外す
     // - クラスが要求したものは、まず \usepackage を書き足して BusyTeX に読み込ませる（latex-extra にあれば見つかる）。
     //   それでも見つからなければ、中身の無い代わりを置く
-    const next = { dropped: [...dropped], hints: [...hints] };
+    const next = { dropped: [...dropped], hints: [...hints], bundles: [...bundles] };
     for (const m of missingFiles(compile.log).packages) {
+      const bundle = await bundleFor(`${m}.sty`);
+      if (bundle && !next.bundles.includes(bundle.name)) {
+        next.bundles.push(bundle.name);
+        continue;
+      }
       const culprit = culpritPackage(compile.log, m, patch.keptPackages);
       if (culprit && !next.dropped.includes(culprit)) next.dropped.push(culprit);
       else if (!culprit && !next.hints.includes(m)) next.hints.push(m);
       else if (!culprit && !next.dropped.includes(m)) next.dropped.push(m);
     }
-    const changed = next.dropped.length !== dropped.length || next.hints.length !== hints.length;
-    if (!changed || i >= MAX_DROP_RETRIES) return { patch, compile, log, notes, dropped, hints };
-    ({ dropped, hints } = next);
+    const changed = next.dropped.length !== dropped.length || next.hints.length !== hints.length || next.bundles.length !== bundles.length;
+    if (!changed || i >= MAX_DROP_RETRIES) return { patch, compile, log, notes, dropped, hints, bundles };
+    ({ dropped, hints, bundles } = next);
   }
 }
 
@@ -163,7 +180,7 @@ async function buildReflow(
   adapterId: string | undefined,
   dropped: string[],
 ): Promise<BuildResult> {
-  const c = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId }, { dropped, hints: [] });
+  const c = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId }, { dropped, hints: [], bundles: [] });
   if (!c.geom) return failed(mug, c);
   const g = c.geom;
   const crop = textCrop(g, g.textTop, g.contentBottom);
@@ -194,7 +211,7 @@ async function buildOriginal(
 ): Promise<BuildResult> {
   const notes: string[] = [];
   // 1. 元の本文幅：ヘッダー・タイトル・フッター
-  const a = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId, width: 'original' }, { dropped, hints: [] });
+  const a = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId, width: 'original' }, { dropped, hints: [], bundles: [] });
   if (!a.geom) return failed(mug, a);
   // 2. 本文サイズに合わせた幅：著者・Abstract（高さの計測を兼ねる）
   let b = await compileOnce(engine, files, mainPath, mug, 'front', { adapterId, width: 'body' }, a);

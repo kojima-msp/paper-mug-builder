@@ -63,7 +63,7 @@ LaTeX プロジェクト（zip）から論文の「表紙」（タイトル・�
     - `algorithmic.sty`（IEEE テンプレートが読み込む）は `ubuntu-texlive-science` に入っている。
   - **必要なときだけ読み込む**：`ubuntu-texlive-latex-extra`（gzip 後 約 36 MB。`stfloats`、`multirow`、`cleveref`、`enumitem` など）。
     - BusyTeX の依存解決は、**メイン tex の中身が文字列のときだけ** `\usepackage` を読む。パッチ後の tex は文字列で渡す。
-  - pgf（tikz）はどのデータパッケージにも無い（§5.1(h) で外す）。
+  - pgf/TikZ・pgfplots はどのデータパッケージにも無いので、TeX Live 2023 版を `public/texmf/pgf.zip`（約 1.5 MB）にまとめて配信する（`scripts/fetch-texmf.sh`）。組版で `tikz.sty` などが見つからなければ、目録（`index.json`）から一式を探して読み込み、組み直す（`src/texmf.ts`）。読み込んだ一式は後の組版に引き継ぐ。
 - **応答の見張り**：BusyTeX はデータパッケージの読み込みに失敗すると、エラーを出さずに完了を待ち続ける。組版中にワーカーから 120 秒何も届かなければ打ち切り、ワーカーを作り直す。ワーカーのエラーも同様に扱う。
 - 初回の転送量は gzip 後で約 110 MB（本体 12 MB、texlive-basic 77 MB、その他 22 MB）。データは IndexedDB にキャッシュされる。
 - コンパイルはプロジェクトを MEMFS に書き、**メイン tex のディレクトリに chdir してから**実行される。相対パスは元のプロジェクトと同じに解決される。
@@ -356,7 +356,7 @@ npm run patch-cli -- <project.zip|dir> --out <dir> [--mode original|reflow] [--p
 - **ホスティングのファイルサイズ上限**：`texlive-basic.data`（105 MB）は GitHub Pages の 100 MB を、`busytex.wasm`（30 MB）は Cloudflare の 25 MiB を超える。データパッケージの作り直し（分割を含む）で解消する。
 - **original の文字サイズとイントロの両立**：`bodyPt` を大きくするほど、タイトルと Abstract が高さを使い、イントロが入らなくなる。印刷範囲を横長にするか、どちらを優先するかを決める必要がある。印刷の解像度と読みやすさは実物で確認する。
 - **流し込んだイントロの `\ref`**：図表を取り除き、1 ページ分しか組まないため、図表・節への参照は `??` になりうる。
-- **EPS 画像**：pdfTeX ではシェルエスケープなしに扱えない。エラーメッセージで案内するに留める。
+- **EPS 画像**：pdfTeX は読めない（変換には Ghostscript が要る）。`\includegraphics` の対象が EPS だけなら、同じ大きさ（`%%BoundingBox`）の枠の PDF に差し替えて組版を続け、警告する（`src/eps.ts`）。同じ名前の PDF・PNG・JPG が zip にあればそちらを使う。
 - **クラスによる `geometry` の上書き拒否や警告**：結果がおかしい場合は、パッチ後の tex をダウンロードして調査する。
 - **ライセンス**：BusyTeX のバイナリには TeX Live の各ライセンス（pdfTeX は GPL）が適用される。配布時はライセンス文とソースの入手先を同梱する。
 

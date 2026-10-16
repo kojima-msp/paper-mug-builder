@@ -5,3 +5,4 @@ public/busytex/
 .DS_Store
 # 試しに置いた実際の論文など
 arXiv-*.zip
+public/texmf/

@@ -89,11 +89,47 @@ export interface PatchResult {
   keptPackages: string[];
   /** 取り除いた \thanks の数 */
   removedThanks: number;
+  /** 枠で代用した EPS の画像（eps：元のファイル、placeholder：代わりに読ませる PDF。どちらもメインのディレクトリ基準） */
+  epsImages: EpsImage[];
   removedFloats: string[];
   warnings: string[];
 }
 
 export class PatchError extends Error {}
+
+export interface EpsImage {
+  eps: string;
+  placeholder: string;
+}
+
+/** EPS の代わりに読ませる PDF の名前（拡張子無しで \includegraphics に書く） */
+const EPS_PLACEHOLDER_SUFFIX = '-mug-eps';
+const RASTER_OR_PDF = ['.pdf', '.png', '.jpg', '.jpeg'];
+
+/**
+ * \includegraphics の対象が EPS なら、代わりの PDF の名前に書き換える。
+ * 同じ名前の PDF・PNG・JPG がプロジェクトにあれば、拡張子を外してそちらを読ませる（Overleaf が変換したものなど）
+ */
+function rewriteEpsImages(src: string, hasFile: PatchOptions['hasFile']): { source: string; images: EpsImage[] } {
+  if (!hasFile) return { source: src, images: [] };
+  const masked = maskComments(src);
+  const images: EpsImage[] = [];
+  let out = '';
+  let last = 0;
+  for (const m of masked.matchAll(/\\includegraphics\s*(\*)?\s*(\[[^\]]*\])?\s*\{([^}]+)\}/g)) {
+    const name = m[3].trim();
+    const base = name.replace(/\.eps$/i, '');
+    const isEps = /\.eps$/i.test(name) || (!/\.[A-Za-z0-9]+$/.test(name) && hasFile(`${name}.eps`) && !RASTER_OR_PDF.some((e) => hasFile(`${name}${e}`)));
+    if (!isEps) continue;
+    const other = RASTER_OR_PDF.find((e) => hasFile(`${base}${e}`));
+    const target = other ? base : `${base}${EPS_PLACEHOLDER_SUFFIX}`;
+    if (!other) images.push({ eps: /\.eps$/i.test(name) ? name : `${name}.eps`, placeholder: `${target}.pdf` });
+    const argStart = m.index + m[0].lastIndexOf('{');
+    out += src.slice(last, argStart) + `{${target}}`;
+    last = m.index + m[0].length;
+  }
+  return { source: out + src.slice(last), images };
+}
 
 /** 「Keywords:」で始まる段落（書体の指定や \noindent が前に付くことがある） */
 const KEYWORD_PARAGRAPH_RE = /^(\\noindent\s*)?(\{?\s*\\(textbf|textit|emph|textsc|bf|it|bfseries|itshape|small|footnotesize)\s*\{?\s*)*(Key\s*words|Keywords|KEYWORDS|Index\s+Terms)\b/i;
@@ -226,7 +262,9 @@ export function patchSource(src: string, opts: PatchOptions): PatchResult {
 
   // (e) \thanks の脚注はマグには不要なので、中身ごと取り除く（\title や \author はプリアンブルにあることも多い）
   const thanksBody = removeCommandWithArg(front + intro, 'thanks');
-  const body = thanksBody.source;
+  // EPS の画像は pdfTeX で読めないので、同じ大きさの枠（build.ts が作る PDF）に差し替える
+  const epsBody = rewriteEpsImages(thanksBody.source, opts.hasFile);
+  const body = epsBody.source;
 
   // (f) 閉じていない環境
   const closedEnvs = unclosedEnvironments(maskComments(body), 0, body.length);
@@ -237,7 +275,10 @@ export function patchSource(src: string, opts: PatchOptions): PatchResult {
 
   // (g) 不要なパッケージ・動かないパッケージを外す（\documentclass 以降のプリアンブルのみ）
   const thanksPreamble = removeCommandWithArg(src.slice(dc.end, beginDoc), 'thanks');
-  const afterClass = thanksPreamble.source;
+  const epsPreamble = rewriteEpsImages(thanksPreamble.source, opts.hasFile);
+  const afterClass = epsPreamble.source;
+  const epsImages = [...epsPreamble.images, ...epsBody.images].filter((e, i, a) => a.findIndex((x) => x.placeholder === e.placeholder) === i);
+  for (const e of epsImages) warnings.push(`EPS の画像（${e.eps}）は表示できないため、同じ大きさの枠で代用しました。PDF か PNG にして zip に入れてください`);
   const removedThanks = thanksBody.count + thanksPreamble.count;
   // 使われているかは、残す本文とプリアンブルのマクロ定義で判定する
   const stub = stubPackages(afterClass, preambleWithoutPackages(afterClass) + body, opts.dropPackages);
@@ -285,6 +326,7 @@ export function patchSource(src: string, opts: PatchOptions): PatchResult {
     removedPackages: stub.removed,
     keptPackages: stub.kept,
     removedThanks,
+    epsImages,
     removedFloats,
     warnings,
   };

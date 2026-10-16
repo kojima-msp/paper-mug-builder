@@ -18,7 +18,8 @@
     "pretest": "node scripts/gen-styles.mjs",
     "pretypecheck": "node scripts/gen-styles.mjs",
     "prepatch-cli": "node scripts/gen-styles.mjs",
-    "pregallery": "node scripts/gen-styles.mjs"
+    "pregallery": "node scripts/gen-styles.mjs",
+    "fetch-texmf": "sh scripts/fetch-texmf.sh"
   },
   "dependencies": {
     "fflate": "^0.8.3",
