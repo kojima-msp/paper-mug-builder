@@ -1,0 +1,27 @@
+{
+  "name": "paper-mug-builder",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "fetch-busytex": "sh scripts/fetch-busytex.sh",
+    "patch-cli": "tsx --import ./scripts/raw-loader.mjs scripts/patch-cli.ts",
+    "gallery": "tsx --import ./scripts/raw-loader.mjs scripts/gallery.ts"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}

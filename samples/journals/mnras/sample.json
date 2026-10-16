@@ -1,0 +1,11 @@
+{
+  "order": 2,
+  "field": "天文学",
+  "journal": "Monthly Notices of the RAS",
+  "cls": "mnras",
+  "bundle": [
+    "mnras.cls",
+    "mnras.bst"
+  ],
+  "note": "テンプレートどおり newtxtext を読み込んでいる"
+}

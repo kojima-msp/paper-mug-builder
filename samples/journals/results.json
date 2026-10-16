@@ -1,0 +1,104 @@
+{
+  "revtex": {
+    "id": "revtex",
+    "originalOk": true,
+    "ms": 2970,
+    "intro": true,
+    "messages": [],
+    "ok": true,
+    "bodyPt": 5.96719374310923,
+    "titlePt": 5.134758076140079
+  },
+  "mnras": {
+    "id": "mnras",
+    "originalOk": true,
+    "ms": 3788,
+    "intro": false,
+    "messages": [
+      "本文 6pt では著者と Abstract が印刷範囲に収まらないため、5.4pt に下げて組みました",
+      "Abstract の下の余白が 0.8 mm しかないため、イントロは入れませんでした（本文の文字サイズを小さくすると入ります）"
+    ],
+    "ok": true,
+    "bodyPt": 5.370474368798307,
+    "titlePt": 6.873192114937633
+  },
+  "achemso": {
+    "id": "achemso",
+    "originalOk": true,
+    "ms": 1605,
+    "intro": false,
+    "messages": [
+      "本文 6pt では著者と Abstract が印刷範囲に収まらないため、4.7pt に下げて組みました",
+      "Abstract の下の余白が 1.4 mm しかないため、イントロは入れませんでした（本文の文字サイズを小さくすると入ります）"
+    ],
+    "ok": true,
+    "bodyPt": 4.683192604134167,
+    "titlePt": 9.631635603490219
+  },
+  "elsarticle": {
+    "id": "elsarticle",
+    "originalOk": true,
+    "ms": 5830,
+    "intro": true,
+    "messages": [],
+    "ok": true,
+    "bodyPt": 5.96719374310923,
+    "titlePt": 6.020603855485178
+  },
+  "amsart": {
+    "id": "amsart",
+    "originalOk": true,
+    "ms": 2860,
+    "intro": true,
+    "messages": [],
+    "ok": true,
+    "bodyPt": 5.96719374310923,
+    "titlePt": 6.051980151583627
+  },
+  "ieeetran": {
+    "id": "ieeetran",
+    "originalOk": true,
+    "ms": 1968,
+    "intro": true,
+    "messages": [
+      "IEEEtran.bst が無いため、番号の付け方が同じ ieeetr.bst で引用番号を解決しました"
+    ],
+    "ok": true,
+    "bodyPt": 5.96719374310923,
+    "titlePt": 10.150565949988335
+  },
+  "aastex": {
+    "id": "aastex",
+    "originalOk": true,
+    "ms": 11177,
+    "intro": true,
+    "messages": [
+      "epsf、ulem は見つからない（または見つからないファイルを要求する）ため外して組みました"
+    ],
+    "ok": true,
+    "bodyPt": 5.96719374310923,
+    "titlePt": 4.253069634480159
+  },
+  "casdc": {
+    "id": "casdc",
+    "originalOk": true,
+    "ms": 13071,
+    "intro": true,
+    "messages": [],
+    "ok": true,
+    "bodyPt": 5.96719374310923,
+    "titlePt": 4.412467121446644
+  },
+  "article": {
+    "id": "article",
+    "originalOk": true,
+    "ms": 3646,
+    "intro": false,
+    "messages": [
+      "Abstract の下にイントロが入らなかったため、イントロ無しで出力します（本文の文字サイズを小さくすると入ります）"
+    ],
+    "ok": true,
+    "bodyPt": 5.970025835683121,
+    "titlePt": 8.024821235539129
+  }
+}

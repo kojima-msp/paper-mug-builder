@@ -1,0 +1,3 @@
+% [paper-mug] 中身の終端の位置（sp）をログに出す。
+% 位置の情報（whatsit）だけのページは、出力ルーチンによっては空とみなされて捨てられる（REVTeX など）ので、直後に見えない罫線を置く
+\pdfsavepos\write-1{MUG-POS=\the\pdflastxpos,\the\pdflastypos}\nointerlineskip\hrule height0pt depth0pt width0pt\relax

@@ -1,0 +1,5 @@
+% [paper-mug] 2 段組の論文で、Abstract をタイトルと同じ全幅の領域に入れる。
+% \@maketitle は \twocolumn[...] の中で組まれるので、その末尾に Abstract を足す。
+\makeatletter\g@addto@macro\@maketitle{%
+{{abstract}}
+}\makeatother

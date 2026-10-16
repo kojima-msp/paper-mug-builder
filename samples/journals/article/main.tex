@@ -1,0 +1,36 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage[round]{natbib}
+\usepackage{authblk}
+\usepackage{hyperref}
+\title{Robust Change-Point Detection for Heavy-Tailed Sensor Streams}
+\author[1]{Yuzuki Tachibana}
+\author[2]{Nora Lindqvist}
+\author[1]{Daichi Morioka}
+\affil[1]{Department of Statistics, Kitamachi University, Japan}
+\affil[2]{Institute of Fictional Statistics, University of Nowhere, Freedonia}
+\date{\today}
+\begin{document}
+\maketitle
+\begin{abstract}
+Change-point detection methods often assume light-tailed noise, but measurements from low-cost sensors frequently contain outliers and heavy tails.
+We propose a fictional robust procedure that combines a median-of-means estimator with a CUSUM-type statistic and adapts its threshold to the unknown tail index.
+We prove that the procedure controls the false alarm rate under only a second-moment assumption and that its detection delay is optimal up to logarithmic factors.
+Simulations show that it outperforms existing robust methods when the noise has infinite fourth moment, while losing little efficiency under Gaussian noise.
+An application to a fictional air-quality network illustrates its practical value.
+\end{abstract}
+\noindent\textbf{Keywords:} change-point detection; robust statistics; heavy tails; median of means
+\section{Introduction}
+Detecting abrupt changes in a data stream is a classical problem with applications from quality control to environmental monitoring \citep{tachibana2021,lindqvist2022}.
+Most procedures rely on sums of observations and therefore inherit their sensitivity to outliers.
+Robust alternatives exist, but they typically require knowledge of the noise distribution or a tuning parameter that is hard to choose \citep{morioka2023}.
+
+In this paper we propose a procedure that is robust to heavy tails and does not require such knowledge.
+The main idea is to replace sample means by median-of-means estimators computed on blocks whose size grows with the length of the monitoring window.
+
+\section{Method}
+Let $X_1, X_2, \dots$ be independent observations.
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}

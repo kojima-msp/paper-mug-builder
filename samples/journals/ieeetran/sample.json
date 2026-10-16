@@ -1,0 +1,10 @@
+{
+  "order": 9,
+  "field": "電気電子・情報（参考）",
+  "journal": "IEEE の会議（IEEEtran）",
+  "cls": "IEEEtran",
+  "bundle": [
+    "IEEEtran.cls"
+  ],
+  "note": "この PoC で最初に対応したクラス"
+}

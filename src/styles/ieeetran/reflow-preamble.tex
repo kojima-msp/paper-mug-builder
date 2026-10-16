@@ -1,0 +1,9 @@
+% [paper-mug] 1 段組でも 2 段組と同じ「Abstract—」の書式にする（compsoc 以外）
+\makeatletter
+\ifCLASSOPTIONcompsoc\else
+\def\abstract{\normalfont\@IEEEabskeysecsize\bfseries\textit{\abstractname}---\relax\@IEEEgobbleleadPARNLSP}
+\def\endabstract{\relax\ifCLASSOPTIONconference\vspace{0ex}\else\vspace{1.34ex}\fi\par\normalfont\normalsize}
+\def\IEEEkeywords{\normalfont\@IEEEabskeysecsize\bfseries\textit{\IEEEkeywordsname}---\relax\@IEEEgobbleleadPARNLSP}
+\def\endIEEEkeywords{\relax\ifCLASSOPTIONtechnote\vspace{1.34ex}\else\vspace{0.67ex}\fi\par\normalfont\normalsize}
+\fi
+\makeatother

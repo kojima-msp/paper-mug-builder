@@ -1,0 +1,11 @@
+{
+  "order": 3,
+  "field": "天文学",
+  "journal": "ApJ・AJ など AAS の雑誌（aastex701）",
+  "cls": "aastex701",
+  "bundle": [
+    "aastex701.cls",
+    "aasjournalv7.bst"
+  ],
+  "note": "既知の不具合：Abstract が右にずれて右端が切れる（AASTeX が Abstract を元の本文幅の中央に置くため。原因は調査中）"
+}

@@ -1,0 +1,9 @@
+% [paper-mug] Computer Modern の T1・TS1 エンコーディング（EC・TC フォント）は BusyTeX に無いので、ほぼ同じ見た目の Latin Modern に切り替える。
+% T1 の論文だけでなく、OT1 の論文が記号（\textcopyright など）だけ TS1 で使う場合もあるので、Computer Modern なら常に切り替える。
+% プリアンブルの最後に置くので、ほかのパッケージがフォントを変えていれば何もしない
+\makeatletter
+\edef\mug@a{\rmdefault}\def\mug@b{cmr}\ifx\mug@a\mug@b\renewcommand\rmdefault{lmr}\fi
+\edef\mug@a{\sfdefault}\def\mug@b{cmss}\ifx\mug@a\mug@b\renewcommand\sfdefault{lmss}\fi
+\edef\mug@a{\ttdefault}\def\mug@b{cmtt}\ifx\mug@a\mug@b\renewcommand\ttdefault{lmtt}\fi
+\normalfont
+\makeatother

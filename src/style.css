@@ -1,0 +1,105 @@
+:root {
+  --bg: #fafaf9;
+  --fg: #1c1917;
+  --muted: #78716c;
+  --line: #e7e5e4;
+  --accent: #2563eb;
+  --warn: #b45309;
+  --error: #b91c1c;
+  --panel: #ffffff;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1917;
+    --fg: #f5f5f4;
+    --muted: #a8a29e;
+    --line: #44403c;
+    --accent: #60a5fa;
+    --warn: #fbbf24;
+    --error: #f87171;
+    --panel: #292524;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+}
+header, footer { padding: 12px 16px; }
+header h1 { margin: 0; font-size: 18px; }
+header small { color: var(--muted); font-weight: normal; }
+footer { color: var(--muted); font-size: 12px; }
+a { color: var(--accent); }
+
+.status { margin: 4px 0 0; color: var(--muted); }
+.status.ready { color: var(--fg); }
+.status.error { color: var(--error); }
+
+main {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 16px;
+  padding: 0 16px;
+}
+@media (max-width: 720px) {
+  main { grid-template-columns: 1fr; }
+}
+
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.controls label { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.controls label.file { flex-direction: column; align-items: flex-start; }
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--panel);
+}
+legend { color: var(--muted); padding: 0 4px; }
+input[type="number"] { width: 5em; }
+.k input { flex: 1; }
+.hint { margin: 0; color: var(--muted); }
+.hint.warn { color: var(--warn); }
+
+.buttons { display: flex; gap: 8px; }
+button {
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: default; }
+
+#messages { margin: 0; padding-left: 18px; }
+#messages li.warn { color: var(--warn); }
+#messages li.error { color: var(--error); }
+#messages li.info { color: var(--muted); }
+
+#downloads { display: flex; gap: 12px; }
+pre#log {
+  max-height: 320px;
+  overflow: auto;
+  font-size: 11px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+.preview iframe {
+  width: 100%;
+  height: min(80vh, 760px);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}

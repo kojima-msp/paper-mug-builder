@@ -1,0 +1,39 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\begin{document}
+\title{Estimating Drink Temperature from Sound: A Smart Mug Prototype}
+\author{\IEEEauthorblockN{Itsuki Morimoto}
+\IEEEauthorblockA{\textit{Dept. of Electrical Engineering} \\
+\textit{Kitamachi University}\\
+Kitamachi, Japan \\
+morimoto@example.org}
+\and
+\IEEEauthorblockN{Clara Westwood}
+\IEEEauthorblockA{\textit{School of Fictional Engineering} \\
+\textit{University of Nowhere}\\
+Nowhere, Freedonia \\
+westwood@example.org}}
+\maketitle
+\begin{abstract}
+The pitch of the sound produced when a liquid is poured into a mug depends on its temperature through the viscosity and the speed of sound.
+We present a fictional smart mug that estimates drink temperature from a short audio recording of pouring.
+A lightweight convolutional network running on a microcontroller predicts the temperature with a mean absolute error of 2.3~\textdegree C across five drinks.
+The method needs no contact sensor and can be added to existing mugs with a clip-on microphone.
+\end{abstract}
+\begin{IEEEkeywords}
+acoustic sensing, embedded machine learning, smart objects
+\end{IEEEkeywords}
+\section{Introduction}
+Smart drinkware promises to prevent burns and to keep drinks at a preferred temperature~\cite{morimoto2021,westwood2022}.
+Most existing products measure temperature with a probe or a sensor in the base, which complicates cleaning and manufacturing.
+Acoustic sensing offers a contact-free alternative, and it has been used to estimate the fill level of containers~\cite{morimoto2023}.
+
+In this paper we show that the same principle can estimate temperature.
+We collect a dataset of pouring sounds, train a compact model, and deploy it on a low-power microcontroller.
+
+\section{Method}
+Audio is recorded at 16~kHz.
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+\end{document}

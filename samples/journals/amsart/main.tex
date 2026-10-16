@@ -1,0 +1,40 @@
+\documentclass{amsart}
+\usepackage{amssymb}
+\newtheorem{theorem}{Theorem}[section]
+\begin{document}
+\title{Spectral gaps of random walks on fictional nilpotent groups}
+\author{Chihiro Amagai}
+\address{Department of Mathematics, Kitamachi University, Kitamachi 100-0000, Japan}
+\email{amagai@example.org}
+\author{Tomasz Wierzbicki}
+\address{Institute of Imaginary Mathematics, University of Nowhere, 00-000 Nowhere, Freedonia}
+\email{wierzbicki@example.org}
+\subjclass[2020]{Primary 60B15; Secondary 20F18, 05C81}
+\keywords{random walks, spectral gap, nilpotent groups, mixing time}
+\date{\today}
+\begin{abstract}
+We study simple random walks on finite quotients of a fictional family of nilpotent groups of class two.
+We prove that the spectral gap of the walk is bounded below by a constant multiple of $n^{-2}$, where $n$ is the order of the generating set, and that this bound is sharp up to a constant.
+As a consequence, the walks mix in order $n^{2}\log n$ steps in total variation distance.
+The proof combines a comparison argument with a decomposition of the group into abelian layers and an explicit estimate for the walk on each layer.
+We also show that the cut-off phenomenon does not occur for this family.
+\end{abstract}
+\maketitle
+\section{Introduction}
+Random walks on finite groups provide a rich source of examples in probability and combinatorics \cite{amagai2021,wierzbicki2022}.
+For abelian groups the spectral gap is computed explicitly from the characters, but for non-abelian groups few sharp results are known.
+Nilpotent groups of class two form a natural next step, because they are close to abelian while exhibiting genuinely non-commutative behaviour \cite{amagai2023}.
+
+In this paper we consider a fictional family of such groups and determine the order of the spectral gap of the simple random walk.
+
+\begin{theorem}
+There exist constants $c, C > 0$ such that $c\, n^{-2} \le \lambda_1 \le C\, n^{-2}$ for all $n \ge 2$.
+\end{theorem}
+
+The upper bound follows from a test function, while the lower bound requires the comparison technique developed in Section~3.
+
+\section{Preliminaries}
+Let $G$ be a finite group.
+\bibliographystyle{amsplain}
+\bibliography{refs}
+\end{document}

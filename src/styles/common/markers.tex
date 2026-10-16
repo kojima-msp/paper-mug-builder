@@ -1,0 +1,17 @@
+% [paper-mug] 組版結果の位置や大きさをログに出す（面付けで使う）。
+% MUG-LAYOUT（sp）：本文幅, 本文高さ, 紙の高さ, 版面の左端, 紙の上端から版面の上端まで, ヘッダーの高さ, ヘッダーと本文の間, フッターの位置
+\AtBeginDocument{\typeout{MUG-LAYOUT=\number\textwidth,\number\textheight,\number\paperheight,\number\dimexpr1in+\hoffset+\oddsidemargin\relax,\number\dimexpr1in+\voffset+\topmargin+\headheight+\headsep\relax,\number\headheight,\number\headsep,\number\footskip}}
+% MUG-BASE（pt）：本文の文字サイズ。MUG-TITLE（pt）：タイトルを組むときの文字サイズ。
+% MUG-TITLEEND（sp）：タイトルの終わりの高さ。後の 2 つは \maketitle の中で \@title が使われた時点のもの。
+% \protected なので \markboth や PDF の文書情報では展開されない
+\makeatletter
+\AtBeginDocument{\typeout{MUG-BASE=\f@size}}
+\protected\def\mug@titlesize{\typeout{MUG-TITLE=\f@size}}
+\protected\def\mug@titleend{\par\pdfsavepos\write-1{MUG-TITLEEND=\the\pdflastypos}}
+% MUG-TITLETOP（sp）：タイトルを組み始める位置（上の空きを切り詰めるため）
+\protected\def\mug@titletop{\pdfsavepos\write-1{MUG-TITLETOP=\the\pdflastypos}}
+% \maketitle が 2 回呼ばれるクラス（REVTeX 系は最初の \section でも呼ぶ）があるので、包むのは 1 回だけ
+\AddToHook{cmd/maketitle/before}{\@ifundefined{mug@origtitle}{\let\mug@origtitle\@title\def\@title{\mug@titletop\mug@titlesize\mug@origtitle\mug@titleend}}{}}
+% MUG-HEAD・MUG-FOOT：1 ページ目のヘッダー・フッターが空か（空なら帯を切り出さない）。出力の直前なので、そのページのスタイルが反映されている
+\AddToHookNext{shipout/before}{\immediate\write-1{MUG-HEAD=\ifx\@oddhead\@empty empty\else full\fi}\immediate\write-1{MUG-FOOT=\ifx\@oddfoot\@empty empty\else full\fi}}
+\makeatother

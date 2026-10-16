@@ -1,0 +1,8 @@
+{
+  "order": 6,
+  "field": "数学",
+  "journal": "AMS の雑誌（amsart）",
+  "cls": "amsart",
+  "bundle": [],
+  "note": "クラスは BusyTeX に入っている"
+}

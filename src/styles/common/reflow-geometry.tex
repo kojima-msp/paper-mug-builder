@@ -1,0 +1,7 @@
+% [paper-mug] 紙の幅を印刷範囲 × k にし、縦長にして改ページを起こさない
+\pagestyle{empty}
+\makeatletter
+\@ifpackageloaded{geometry}
+  {\geometry{{{geometry}}}}
+  {\usepackage[{{geometry}}]{geometry}}
+\makeatother

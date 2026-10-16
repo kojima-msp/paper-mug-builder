@@ -1,0 +1,2 @@
+% [paper-mug] イントロの最初の段落（節見出しを含む）が組まれたページをログに出す。1 ページ目に入らなかったことを見分けるため
+\AddToHookNext{para/begin}{\pdfsavepos\write-1{MUG-INTRO=\thepage}}

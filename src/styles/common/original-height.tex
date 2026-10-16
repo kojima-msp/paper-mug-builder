@@ -1,0 +1,4 @@
+% [paper-mug] 本文の高さ。紙の高さもそれに合わせる（geometry や hyperref が \AtBeginDocument で設定する値を最後に上書きする）
+\setlength{\textheight}{{{textheight}}}
+\setlength{\paperheight}{\dimexpr1in+\voffset+\topmargin+\headheight+\headsep+\textheight+1in\relax}
+\AtBeginDocument{\pdfpageheight=\paperheight\relax}

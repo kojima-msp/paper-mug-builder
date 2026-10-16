@@ -1,0 +1,4 @@
+% [paper-mug] 本文幅を変えた後も、Abstract の幅を元と同じ比にする（そのままだと版面からはみ出す）
+\makeatletter
+\@ifundefined{mug@absratio}{}{\edef\frontmatter@abstractwidth{\mug@absratio\textwidth}}
+\makeatother

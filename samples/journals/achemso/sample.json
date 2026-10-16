@@ -1,0 +1,12 @@
+{
+  "order": 4,
+  "field": "化学",
+  "journal": "J. Am. Chem. Soc.（ACS）",
+  "cls": "achemso",
+  "bundle": [
+    "achemso.cls",
+    "achemso.bst",
+    "natmove.sty"
+  ],
+  "note": "投稿用の書式（manuscript=article）。ACS の雑誌は出版時に組み直すため、掲載時の見た目ではない。arXiv では化学の 12 本中 1 本と少数"
+}

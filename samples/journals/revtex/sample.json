@@ -1,0 +1,13 @@
+{
+  "order": 1,
+  "field": "物理学",
+  "journal": "Physical Review B（APS）",
+  "cls": "revtex4-2",
+  "bundle": [
+    "revtex4-2.cls",
+    "revsymb4-2.sty",
+    "aps4-2.rtx",
+    "aps10pt4-2.rtx",
+    "apsrev4-2.bst"
+  ]
+}

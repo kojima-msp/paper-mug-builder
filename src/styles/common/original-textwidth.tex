@@ -1,0 +1,5 @@
+% [paper-mug] 本文幅：マグ上の本文の文字サイズが {{bodyPt}}pt になる幅。
+% 縮尺は「利用可能な幅 ÷ 本文幅」なので、本文幅 = 利用可能な幅（{{availWidth}} mm）× 元の本文の文字サイズ ÷ {{bodyPt}}
+\makeatletter\setlength{\textwidth}{\fpeval{{{availWidth}}*\f@size/{{bodyPt}}}mm}\makeatother
+% fancyhdr のヘッダー幅は読み込み時の本文幅で決まるので合わせる
+\makeatletter\AtBeginDocument{\@ifundefined{headwidth}{}{\setlength{\headwidth}{\textwidth}}}\makeatother

@@ -1,0 +1,11 @@
+{
+  "order": 5,
+  "field": "生態学（Elsevier）",
+  "journal": "Elsevier の雑誌全般（例：生態学）",
+  "cls": "elsarticle",
+  "bundle": [
+    "elsarticle.cls",
+    "elsarticle-num.bst"
+  ],
+  "note": "出版時の 2 段組に近い 5p オプション"
+}

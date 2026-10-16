@@ -1,0 +1,13 @@
+{
+  "order": 7,
+  "field": "地球科学（Elsevier）",
+  "journal": "Elsevier の新しい 2 段組テンプレート（cas-dc）",
+  "cls": "cas-dc",
+  "bundle": [
+    "cas-dc.cls",
+    "cas-common.sty",
+    "cas-model2-names.bst",
+    "thumbnails/cas-email.jpeg",
+    "thumbnails/cas-url.jpeg"
+  ]
+}

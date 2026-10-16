@@ -1,0 +1,8 @@
+{
+  "order": 10,
+  "field": "統計学など（汎用）",
+  "journal": "arXiv のプレプリントで最多の汎用クラス（article）",
+  "cls": "article",
+  "bundle": [],
+  "note": "余白 1 インチ・著者ブロック・natbib という典型的な書き方"
+}

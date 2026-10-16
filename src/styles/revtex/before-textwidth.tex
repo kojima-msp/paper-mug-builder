@@ -1,0 +1,7 @@
+% [paper-mug] REVTeX 系は Abstract の幅（\frontmatter@abstractwidth）を本文幅と別に決めている（APS なら 400pt、AASTeX なら 478pt）。
+% 本文幅を変える前に、本文幅との比を覚えておく。AASTeX のように本文幅より広い（版面からはみ出す）ものは本文幅までにする
+\makeatletter
+\setlength\@tempdima{\frontmatter@abstractwidth}
+\ifdim\@tempdima>\textwidth \@tempdima=\textwidth \fi
+\edef\mug@absratio{\fpeval{\@tempdima/\textwidth}}
+\makeatother
